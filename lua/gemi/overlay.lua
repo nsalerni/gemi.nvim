@@ -12,6 +12,8 @@ M._state = {
     main_win = nil,
     prompt_buf = nil,
     prompt_win = nil,
+    model_indicator_buf = nil,
+    model_indicator_win = nil,
     logs_start_line = 3, -- Line where logs start
     prompt_height = 1,
     current_prompt = '',
@@ -175,6 +177,9 @@ function M.update_logs()
     vim.api.nvim_buf_set_lines(M._state.main_buf, 0, -1, false, lines)
     vim.api.nvim_buf_set_option(M._state.main_buf, 'modifiable', false)
     
+    -- Add model indicator to bottom right corner
+    M.add_model_indicator()
+    
     -- Scroll to bottom
     if M._state.main_win and vim.api.nvim_win_is_valid(M._state.main_win) then
         vim.api.nvim_win_set_cursor(M._state.main_win, {#lines, 0})
@@ -275,6 +280,9 @@ function M.show()
     
     -- Update logs initially
     M.update_logs()
+    
+    -- Add model indicator
+    M.add_model_indicator()
 end
 
 -- Hide the overlay
@@ -300,12 +308,17 @@ function M.hide()
     if M._state.prompt_win and vim.api.nvim_win_is_valid(M._state.prompt_win) then
         vim.api.nvim_win_close(M._state.prompt_win, true)
     end
+    if M._state.model_indicator_win and vim.api.nvim_win_is_valid(M._state.model_indicator_win) then
+        vim.api.nvim_win_close(M._state.model_indicator_win, true)
+    end
     
     -- Clean up state
     M._state.main_buf = nil
     M._state.main_win = nil
     M._state.prompt_buf = nil
     M._state.prompt_win = nil
+    M._state.model_indicator_buf = nil
+    M._state.model_indicator_win = nil
     M._state.is_visible = false
 end
 
@@ -352,6 +365,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'GemiNormal', { link = 'Normal' })
     vim.api.nvim_set_hl(0, 'GemiBorder', { link = 'FloatBorder' })
     vim.api.nvim_set_hl(0, 'GemiTitle', { link = 'Title' })
+    vim.api.nvim_set_hl(0, 'GemiModelIndicator', { fg = '#8a8a8a', bg = 'NONE', italic = true })
 end
 
 -- Check if overlay is visible
@@ -378,6 +392,85 @@ function M.stop_execution()
     M._state.is_executing = false
     M.stop_spinner()
     M.update_logs()
+end
+
+-- Add model indicator to bottom right corner
+function M.add_model_indicator()
+    if not M._state.main_win or not vim.api.nvim_win_is_valid(M._state.main_win) then
+        return
+    end
+    
+    -- Get current model
+    local ok, gemi = pcall(require, 'gemi')
+    if not ok then
+        return
+    end
+    
+    local current_model = gemi.get_current_model()
+    if not current_model then
+        return
+    end
+    
+    -- Create a short model name for display
+    local model_display = current_model
+    if current_model:find('gemini-2.5-flash') then
+        model_display = '2.5-flash'
+    elseif current_model:find('gemini-2.5-pro') then
+        model_display = '2.5-pro'
+    elseif current_model:find('gemini-1.5-flash') then
+        model_display = '1.5-flash'
+    elseif current_model:find('gemini-1.5-pro') then
+        model_display = '1.5-pro'
+    end
+    
+    -- Get window dimensions
+    local win_config = vim.api.nvim_win_get_config(M._state.main_win)
+    local width = win_config.width
+    local height = win_config.height
+    
+    -- Create model indicator text
+    local model_text = string.format('[%s]', model_display)
+    local model_col = width - #model_text - 1
+    local model_row = height - 1
+    
+    -- Create floating window for model indicator
+    if M._state.model_indicator_buf and vim.api.nvim_buf_is_valid(M._state.model_indicator_buf) then
+        vim.api.nvim_buf_delete(M._state.model_indicator_buf, { force = true })
+    end
+    
+    M._state.model_indicator_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_option(M._state.model_indicator_buf, 'buftype', 'nofile')
+    vim.api.nvim_buf_set_option(M._state.model_indicator_buf, 'bufhidden', 'wipe')
+    vim.api.nvim_buf_set_option(M._state.model_indicator_buf, 'buflisted', false)
+    vim.api.nvim_buf_set_option(M._state.model_indicator_buf, 'swapfile', false)
+    vim.api.nvim_buf_set_option(M._state.model_indicator_buf, 'modifiable', true)
+    
+    -- Set the model text
+    vim.api.nvim_buf_set_lines(M._state.model_indicator_buf, 0, -1, false, { model_text })
+    vim.api.nvim_buf_set_option(M._state.model_indicator_buf, 'modifiable', false)
+    
+    -- Calculate absolute position
+    local main_win_row = win_config.row or 0
+    local main_win_col = win_config.col or 0
+    
+    -- Create floating window for model indicator
+    if M._state.model_indicator_win and vim.api.nvim_win_is_valid(M._state.model_indicator_win) then
+        vim.api.nvim_win_close(M._state.model_indicator_win, true)
+    end
+    
+    M._state.model_indicator_win = vim.api.nvim_open_win(M._state.model_indicator_buf, false, {
+        relative = 'editor',
+        width = #model_text,
+        height = 1,
+        row = main_win_row + model_row,
+        col = main_win_col + model_col,
+        style = 'minimal',
+        focusable = false,
+        zindex = 1000,
+    })
+    
+    -- Set highlight for model indicator
+    vim.api.nvim_win_set_option(M._state.model_indicator_win, 'winhighlight', 'Normal:GemiModelIndicator')
 end
 
 -- Pre-initialize
