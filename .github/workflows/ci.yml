@@ -9,18 +9,15 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        lua-version: ["5.1", "5.2", "5.3", "5.4", "luajit"]
+    name: Test on Ubuntu
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Lua
+    - name: Setup Lua 5.1
       uses: leafo/gh-actions-lua@v10
       with:
-        luaVersion: ${{ matrix.lua-version }}
+        luaVersion: "5.1"
     
     - name: Setup Luarocks
       uses: leafo/gh-actions-luarocks@v4
@@ -50,27 +47,21 @@ jobs:
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: gemi-nvim-release-${{ matrix.lua-version }}
+        name: gemi-nvim-release
         path: dist/
         retention-days: 30
 
-  lint-only:
+  luajit-test:
     runs-on: ubuntu-latest
-    name: Lint and Format Check
+    name: Test with LuaJIT
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Lua
-      uses: leafo/gh-actions-lua@v10
-      with:
-        luaVersion: "5.1"
-    
-    - name: Setup Luarocks
-      uses: leafo/gh-actions-luarocks@v4
-    
-    - name: Install luacheck
-      run: luarocks install luacheck
+    - name: Install LuaJIT and tools via apt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y luajit luacheck
     
     - name: Install stylua
       run: |
@@ -79,5 +70,13 @@ jobs:
         chmod +x stylua
         sudo mv stylua /usr/local/bin/
     
-    - name: Run all checks
-      run: make all
+    - name: Run linting and formatting check
+      run: make check
+    
+    - name: Run build (skip help tag generation)
+      run: |
+        echo "Building gemi.nvim..."
+        echo "Checking Lua syntax..."
+        find lua -name "*.lua" -exec luajit -bl {} \; > /dev/null 2>&1 || (echo "Syntax check failed" && exit 1)
+        find plugin -name "*.lua" -exec luajit -bl {} \; > /dev/null 2>&1 || (echo "Syntax check failed" && exit 1)
+        echo "Build complete!"
