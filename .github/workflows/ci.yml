@@ -30,22 +30,13 @@ jobs:
     
     - name: Install stylua
       run: |
-        curl -L https://github.com/JohnnyMorganz/StyLua/releases/latest/download/stylua-linux-x86_64.zip -o stylua.zip
+        curl -L https://github.com/JohnnyMorganz/StyLua/releases/download/v0.20.0/stylua-linux-x86_64.zip -o stylua.zip
         unzip stylua.zip
         chmod +x stylua
         sudo mv stylua /usr/local/bin/
     
-    - name: Run linting
-      run: make lint
-    
-    - name: Run formatting check
-      run: |
-        make format
-        if [[ `git status --porcelain` ]]; then
-          echo "Code is not properly formatted"
-          git diff
-          exit 1
-        fi
+    - name: Run linting and formatting check
+      run: make check
     
     - name: Run build
       run: make build
@@ -83,7 +74,7 @@ jobs:
     
     - name: Install stylua
       run: |
-        curl -L https://github.com/JohnnyMorganz/StyLua/releases/latest/download/stylua-linux-x86_64.zip -o stylua.zip
+        curl -L https://github.com/JohnnyMorganz/StyLua/releases/download/v0.20.0/stylua-linux-x86_64.zip -o stylua.zip
         unzip stylua.zip
         chmod +x stylua
         sudo mv stylua /usr/local/bin/
