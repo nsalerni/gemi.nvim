@@ -16,7 +16,7 @@ function M.run_gemini_system(prompt, callback)
         return nil
     end
     
-    logger.info('Starting gemini execution', { prompt = prompt })
+    logger.debug('Starting gemini execution', { prompt = prompt })
     
     -- Build command
     local cmd = 'gemini --prompt ' .. vim.fn.shellescape(prompt)
@@ -46,7 +46,7 @@ function M.run_gemini_system(prompt, callback)
         cmd = cmd .. ' --checkpointing'
     end
     
-    logger.info('Executing command', { cmd = cmd })
+    logger.debug('Executing command', { cmd = cmd })
     
     -- Start execution state
     local overlay = require('gemi.overlay')
@@ -54,7 +54,7 @@ function M.run_gemini_system(prompt, callback)
     
     if has_asyncrun() then
         -- Use asyncrun.vim for non-blocking execution
-        logger.info('Using asyncrun.vim for non-blocking execution')
+        logger.debug('Using asyncrun.vim for non-blocking execution')
         
         -- Create temporary output file
         local temp_file = vim.fn.tempname()
@@ -98,7 +98,7 @@ function M.run_gemini_system(prompt, callback)
                     local success = exit_code == 0
                     
                     if success then
-                        logger.info('Command completed successfully')
+                        logger.debug('Command completed successfully')
                         -- Log the full output separately to preserve formatting
                         if output and output ~= '' then
                             logger.log_output(output, false)
@@ -131,7 +131,7 @@ function M.run_gemini_system(prompt, callback)
         -- Run the command with asyncrun and redirect output to temp file
         vim.cmd('AsyncRun ' .. cmd_with_output)
         
-        logger.info('Job started (asyncrun mode)', { temp_file = temp_file })
+        logger.debug('Job started (asyncrun mode)', { temp_file = temp_file })
         
         return {
             job_id = 'asyncrun',
@@ -146,7 +146,7 @@ function M.run_gemini_system(prompt, callback)
         }
     else
         -- Fallback to jobstart for non-blocking execution
-        logger.info('asyncrun.vim not found, using jobstart fallback')
+        logger.debug('asyncrun.vim not found, using jobstart fallback')
         
         local output_lines = {}
         local error_lines = {}
@@ -181,7 +181,7 @@ function M.run_gemini_system(prompt, callback)
                     local errors = table.concat(error_lines, '\n')
                     
                     if success then
-                        logger.info('Command completed successfully')
+                        logger.debug('Command completed successfully')
                         -- Log the full output separately to preserve formatting
                         if output and output ~= '' then
                             logger.log_output(output, false)
@@ -215,7 +215,7 @@ function M.run_gemini_system(prompt, callback)
             return nil
         end
         
-        logger.info('Job started (jobstart mode)', { job_id = job })
+        logger.debug('Job started (jobstart mode)', { job_id = job })
         
         return {
             job_id = job,

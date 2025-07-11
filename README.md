@@ -138,6 +138,12 @@ require('gemi').setup({
     },
   },
   
+  -- Logging
+  logging = {
+    debug = false,           -- Enable verbose debug logging
+    level = 'INFO',          -- Log level: DEBUG, INFO, WARN, ERROR
+  },
+  
   -- Installation settings
   install = {
     check_node = true,       -- Check Node.js installation

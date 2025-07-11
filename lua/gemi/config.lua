@@ -49,6 +49,12 @@ M.defaults = {
         node_min_version = '16.0.0',
         auto_install = false,
     },
+
+    -- Logging
+    logging = {
+        debug = false,  -- Enable verbose debug logging
+        level = 'INFO', -- Log level: DEBUG, INFO, WARN, ERROR
+    },
 }
 
 -- Current configuration

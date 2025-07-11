@@ -15,8 +15,22 @@ M.LEVELS = {
     ERROR = 4,
 }
 
+-- Check if debug logging is enabled
+function M.is_debug_enabled()
+    local ok, config = pcall(require, 'gemi.config')
+    if ok then
+        return config.get('logging.debug') == true
+    end
+    return false
+end
+
 -- Add log entry
 function M.log(level, message, data)
+    -- Skip debug messages unless debug is enabled
+    if level == M.LEVELS.DEBUG and not M.is_debug_enabled() then
+        return
+    end
+    
     local timestamp = os.date('%H:%M:%S')
     local log_entry = {
         timestamp = timestamp,

@@ -1,4 +1,3 @@
--- Hello World
 -- Gemi.nvim
 -- Copyright (c) 2025 Nil Pointer
 -- All rights reserved.
