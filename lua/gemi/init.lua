@@ -1,8 +1,3 @@
--- Gemi.nvim
--- Copyright (c) 2025 Nil Pointer
--- All rights reserved.
---
--- lua/gemi/init.lua
 -- Main Gemi module
 
 local M = {}
@@ -154,7 +149,7 @@ end
 function M.handle_rate_limit_error(prompt, error_output)
     local current_model = M.get_current_model()
     local fallback_model = M.get_fallback_model(current_model)
-    
+
     -- Log the fallback attempt
     local logger = require('gemi.logger')
     logger.info('Rate limit detected, attempting model fallback', {
@@ -162,26 +157,26 @@ function M.handle_rate_limit_error(prompt, error_output)
         fallback_model = fallback_model,
         error_preview = error_output and tostring(error_output):sub(1, 100) or 'No error details'
     })
-    
+
     vim.notify(string.format("Rate limit hit for %s, trying %s...", current_model, fallback_model), vim.log.levels.WARN)
-    
+
     -- Switch to fallback model
     local config = get_config()
     config.config.gemini.model = fallback_model
-    
+
     -- Track that we're using fallback to avoid infinite loops
     M._state.using_fallback = true
-    
+
     -- Retry with fallback model
     local executor = get_executor()
     local tracker = get_tracker()
-    
+
     M._state.is_running = true
     M._state.current_job = executor.run_gemini(prompt, function(success, output)
         M._state.is_running = false
         M._state.current_job = nil
         M._state.using_fallback = false
-        
+
         if success then
             -- Scan for changes after execution
             tracker.scan_for_changes()
@@ -190,19 +185,19 @@ function M.handle_rate_limit_error(prompt, error_output)
         else
             -- Both models failed
             if M.is_rate_limit_error(output) then
-                logger.error('Both models hit rate limits', { 
-                    original_model = current_model, 
-                    fallback_model = fallback_model 
+                logger.error('Both models hit rate limits', {
+                    original_model = current_model,
+                    fallback_model = fallback_model
                 })
                 vim.notify(string.format("Rate limit hit for both %s and %s models. Please wait and try again later.", current_model, fallback_model), vim.log.levels.ERROR)
             else
-                logger.error('Fallback model failed', { 
+                logger.error('Fallback model failed', {
                     fallback_model = fallback_model,
                     error = output and tostring(output):sub(1, 100) or 'No error details'
                 })
                 vim.notify(string.format("Fallback model %s also failed: %s", fallback_model, output or "Unknown error"), vim.log.levels.ERROR)
             end
-            
+
             -- Restore original model
             config.config.gemini.model = current_model
             logger.debug('Restored original model', { model = current_model })
@@ -253,7 +248,7 @@ function M.switch_model(model)
         'gemini-1.5-flash',
         'gemini-1.5-pro',
     }
-    
+
     if model then
         -- Set specific model
         if vim.tbl_contains(valid_models, model) then
@@ -300,7 +295,7 @@ function M.get_fallback_model(current_model)
         ['gemini-1.5-flash'] = 'gemini-1.5-pro',
         ['gemini-1.5-pro'] = 'gemini-1.5-flash',
     }
-    
+
     return fallback_pairs[current_model] or 'gemini-2.5-pro'
 end
 
@@ -309,11 +304,11 @@ function M.is_rate_limit_error(error_output)
     if not error_output then
         return false
     end
-    
+
     local error_str = tostring(error_output):lower()
-    return error_str:find('429') or 
-           error_str:find('rate limit') or 
-           error_str:find('quota') or 
+    return error_str:find('429') or
+           error_str:find('rate limit') or
+           error_str:find('quota') or
            error_str:find('too many requests')
 end
 
