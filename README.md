@@ -174,6 +174,27 @@ require('gemi').setup({
 - **Hide UI while running**: Press `<Esc>` to hide the prompt (execution continues)
 - **Show UI again**: `<leader>g` to toggle the prompt back on
 
+### Debug Logging
+
+By default, Gemi shows minimal logs (user prompts and AI responses). To enable detailed debug logging:
+
+```lua
+require('gemi').setup({
+  logging = {
+    debug = true,  -- Enable verbose debug logging
+  },
+})
+```
+
+**Debug logging includes:**
+- Command execution details
+- File scanning and change detection
+- Buffer reload operations
+- Internal state changes
+- Snapshot creation process
+
+**View logs:** Press `<leader>g` to open the overlay, or use `<leader>gl` to open logs in a separate window.
+
 ## Requirements
 
 - Neovim 0.8+
