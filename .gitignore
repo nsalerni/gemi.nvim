@@ -48,3 +48,6 @@ dist/
 .env
 .env.local
 local.lua
+
+# GitHub Actions (keep workflows tracked)
+!.github/

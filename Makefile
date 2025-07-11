@@ -1,7 +1,7 @@
 # Makefile for gemi.nvim
 # Lua project build, lint, and format automation
 
-.PHONY: help build lint format fix test check install-tools clean all
+.PHONY: help build lint format fix test check install-tools clean all version release
 
 # Default target
 help:
@@ -18,6 +18,8 @@ help:
 	@echo "  check        - Run lint and format check (CI-friendly)"
 	@echo "  test         - Run tests (if any)"
 	@echo "  clean        - Clean generated files"
+	@echo "  version      - Show current version"
+	@echo "  release      - Create release package"
 	@echo "  all          - Run full pipeline: lint, format, build"
 	@echo ""
 	@echo "Tools required:"
@@ -149,3 +151,25 @@ fix:
 # Quick format and lint
 quick: format lint
 	@echo "Quick format and lint complete!"
+
+# Show current version
+version:
+	@cat VERSION
+
+# Create release package
+release:
+	@echo "Creating release build..."
+	@VERSION=$$(cat VERSION); \
+	echo "Building version $$VERSION"; \
+	mkdir -p dist; \
+	tar -czf dist/gemi.nvim-$$VERSION.tar.gz \
+		--exclude='.git*' \
+		--exclude='dist' \
+		--exclude='node_modules' \
+		--exclude='*.log' \
+		--exclude='test-*.lua' \
+		--exclude='.DS_Store' \
+		--exclude='Makefile' \
+		--exclude='.github' \
+		.; \
+	echo "Release package created: dist/gemi.nvim-$$VERSION.tar.gz"

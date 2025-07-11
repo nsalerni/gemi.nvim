@@ -1,5 +1,8 @@
 # Gemi.nvim
 
+[![CI](https://github.com/nsalerni/gemi.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/nsalerni/gemi.nvim/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A Neovim plugin for seamless integration with Google's gemini-cli, providing an intuitive interface to interact with Gemini AI directly from your editor.
 
 ## Features
@@ -19,7 +22,9 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
 
 ```lua
 {
-  'your-username/gemi.nvim',
+  'nsalerni/gemi.nvim',
+  -- Optional: Pin to specific version
+  -- tag = 'v0.1',
   dependencies = {
     'skywind3000/asyncrun.vim', -- Optional: for non-blocking execution
   },
@@ -35,7 +40,9 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
 
 ```lua
 use {
-  'your-username/gemi.nvim',
+  'nsalerni/gemi.nvim',
+  -- Optional: Pin to specific version
+  -- tag = 'v0.1',
   requires = {
     'skywind3000/asyncrun.vim', -- Optional: for non-blocking execution
   },
@@ -49,13 +56,26 @@ use {
 
 ```vim
 Plug 'skywind3000/asyncrun.vim'  " Optional: for non-blocking execution
-Plug 'your-username/gemi.nvim'
+Plug 'nsalerni/gemi.nvim'
+" Optional: Pin to specific version
+" Plug 'nsalerni/gemi.nvim', { 'tag': 'v0.1' }
 ```
 
 Then in your `init.lua`:
 ```lua
 require('gemi').setup()
 ```
+
+## Versioning
+
+Gemi.nvim follows semantic versioning. You can:
+
+- **Use latest**: Install without specifying a version to get the latest changes
+- **Pin to version**: Use `tag = 'v0.1'` to pin to a specific stable release
+- **Check version**: The current version is `0.1`
+
+**Available versions:**
+- `v0.1` - Initial release
 
 ## Quick Start
 
@@ -113,7 +133,7 @@ require('gemi').setup({
     title = ' Gemi ',   -- Window title
     prompt = 'Gemi: ',  -- Input prompt
   },
-  
+
   -- Keymaps (set to false to disable)
   keymaps = {
     toggle = '<leader>g',
@@ -121,7 +141,7 @@ require('gemi').setup({
     diff = '<leader>gd',
     stop = '<leader>gs',
   },
-  
+
   -- gemini-cli settings
   gemini = {
     model = 'gemini-2.5-flash', -- Default model with better rate limits
@@ -130,7 +150,7 @@ require('gemi').setup({
     yolo = true,                 -- Automatically accept all actions
     checkpointing = true,        -- Enable checkpointing of file edits
   },
-  
+
   -- File tracking
   tracking = {
     auto_scan = true,        -- Automatically track file changes
@@ -141,13 +161,13 @@ require('gemi').setup({
       '%.log$',
     },
   },
-  
+
   -- Logging
   logging = {
     debug = false,           -- Enable verbose debug logging
     level = 'INFO',          -- Log level: DEBUG, INFO, WARN, ERROR
   },
-  
+
   -- Installation settings
   install = {
     check_node = true,       -- Check Node.js installation
@@ -296,3 +316,4 @@ MIT License - see LICENSE file for details.
 
 - Google's gemini-cli for the AI capabilities
 - The Neovim community for excellent plugin development resources
+- Created by Nick Salerni
