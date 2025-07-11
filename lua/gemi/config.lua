@@ -1,6 +1,7 @@
 -- lua/gemi/config.lua
 -- Configuration management for Gemi plugin
 local M = {}
+local unused_var = "test"
 
 -- Default configuration
 M.defaults = {
