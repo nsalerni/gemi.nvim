@@ -25,7 +25,7 @@ M.defaults = {
 
     -- gemini-cli settings
     gemini = {
-        model = 'gemini-2.5-flash',  -- Use the correct model name
+        model = 'gemini-2.5-flash',  -- Default model with better rate limits
         debug = false,             -- Enable debug mode
         all_files = false,         -- Include all files in context
         yolo = true,               -- Automatically accept all actions

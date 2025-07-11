@@ -43,6 +43,25 @@ vim.api.nvim_create_user_command('GemiDebug', function()
     require('gemi').debug_changes()
 end, { desc = 'Debug Gemi change detection' })
 
+vim.api.nvim_create_user_command('GemiModel', function(opts)
+    if opts.args and opts.args ~= '' then
+        require('gemi').switch_model(opts.args)
+    else
+        require('gemi').switch_model()
+    end
+end, { 
+    desc = 'Switch Gemini model',
+    nargs = '?',
+    complete = function()
+        return { 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro' }
+    end
+})
+
+vim.api.nvim_create_user_command('GemiCurrentModel', function()
+    local model = require('gemi').get_current_model()
+    vim.notify(string.format('Current model: %s', model), vim.log.levels.INFO)
+end, { desc = 'Show current Gemini model' })
+
 -- Default keymaps (can be overridden by user)
 vim.keymap.set('n', '<C-g>', function()
     require('gemi').toggle()
@@ -79,3 +98,7 @@ end, { desc = 'Show Gemi logs' })
 vim.keymap.set('n', '<leader>gr', function()
     require('gemi').force_reload_changed_files()
 end, { desc = 'Force reload Gemi changed files' })
+
+vim.keymap.set('n', '<leader>gm', function()
+    require('gemi').switch_model()
+end, { desc = 'Switch Gemini model' })

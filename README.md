@@ -85,6 +85,8 @@ require('gemi').setup()
 | `:GemiFiles` | Show files changed by Gemi |
 | `:GemiDiff` | Show diff view of changes |
 | `:GemiReload` | Force reload all files changed by Gemi |
+| `:GemiModel [model]` | Switch Gemini model (interactive menu or specify model) |
+| `:GemiCurrentModel` | Show current Gemini model |
 
 ## Default Keybindings
 
@@ -97,6 +99,7 @@ require('gemi').setup()
 | `<leader>ga` | `:GemiAuth` | Authenticate with Google |
 | `<leader>gi` | `:GemiInstall` | Install dependencies |
 | `<leader>gr` | `:GemiReload` | Force reload changed files |
+| `<leader>gm` | `:GemiModel` | Switch Gemini model |
 
 ## Configuration
 
@@ -194,6 +197,42 @@ require('gemi').setup({
 - Snapshot creation process
 
 **View logs:** Press `<leader>g` to open the overlay, or use `<leader>gl` to open logs in a separate window.
+
+### Model Switching
+
+Gemi supports multiple Gemini models. Switch between them easily:
+
+**Interactive menu:**
+```vim
+:GemiModel
+```
+or press `<leader>gm`
+
+**Direct model selection:**
+```vim
+:GemiModel gemini-2.5-flash    " Better rate limits, faster responses
+:GemiModel gemini-2.5-pro      " More capable, slower responses
+```
+
+**Check current model:**
+```vim
+:GemiCurrentModel
+```
+
+**Available models:**
+- `gemini-2.5-flash` (default) - Best for most use cases, better rate limits
+- `gemini-2.5-pro` - More capable for complex tasks
+- `gemini-1.5-flash` - Legacy fast model
+- `gemini-1.5-pro` - Legacy pro model
+
+**Automatic Rate Limit Handling:**
+If you hit rate limits (error 429), Gemi automatically:
+1. Switches to the alternate model (flash ↔ pro)
+2. Retries your prompt with the fallback model
+3. If both models fail, alerts you to wait and try again
+4. Restores your original model if fallback fails
+
+This ensures minimal interruption when hitting usage limits!
 
 ## Requirements
 
