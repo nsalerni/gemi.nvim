@@ -1,4 +1,4 @@
--- hello
+-- Hello World
 -- Gemi.nvim
 -- Copyright (c) 2025 Nil Pointer
 -- All rights reserved.
@@ -128,12 +128,16 @@ function M.execute_prompt(prompt)
     local executor = get_executor()
     local tracker = get_tracker()
 
+    -- Create a snapshot before execution to capture the baseline
+    tracker.create_snapshot('pre_execution')
+
     M._state.is_running = true
     M._state.current_job = executor.run_gemini(prompt, function(success, output)
         M._state.is_running = false
         M._state.current_job = nil
 
         if success then
+            -- Scan for changes after execution
             tracker.scan_for_changes()
             -- No success notification - let it happen silently
         else
@@ -150,6 +154,26 @@ function M.stop()
         M._state.is_running = false
         vim.notify("Gemi execution stopped", vim.log.levels.INFO)
     end
+end
+
+-- Force reload all changed files
+function M.force_reload_changed_files()
+    if not M._state.initialized then
+        M.setup()
+    end
+
+    local tracker = get_tracker()
+    tracker.force_reload_all_changed_files()
+end
+
+-- Debug change detection
+function M.debug_changes()
+    if not M._state.initialized then
+        M.setup()
+    end
+
+    local tracker = get_tracker()
+    return tracker.debug_change_detection()
 end
 
 return M

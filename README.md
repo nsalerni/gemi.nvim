@@ -7,6 +7,7 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
 - 🚀 **Easy Installation**: Automatically installs gemini-cli and dependencies
 - 🎯 **Minimal UI**: Toggleable prompt interface that stays out of your way
 - 🔄 **Non-blocking Execution**: Run gemini-cli without freezing the UI (requires asyncrun.vim)
+- 🔃 **Auto-reload**: Automatically reloads modified files in Neovim after gemini CLI makes changes
 - 📁 **File Tracking**: Monitor and navigate files changed by Gemini
 - 📊 **Diff Viewer**: Side-by-side comparison of changes made by Gemini
 - 🔐 **Authentication**: Built-in Google authentication flow
@@ -83,6 +84,7 @@ require('gemi').setup()
 | `:GemiAuth` | Authenticate with Google |
 | `:GemiFiles` | Show files changed by Gemi |
 | `:GemiDiff` | Show diff view of changes |
+| `:GemiReload` | Force reload all files changed by Gemi |
 
 ## Default Keybindings
 
@@ -94,6 +96,7 @@ require('gemi').setup()
 | `<leader>gs` | Stop execution | Stop current Gemi operation |
 | `<leader>ga` | `:GemiAuth` | Authenticate with Google |
 | `<leader>gi` | `:GemiInstall` | Install dependencies |
+| `<leader>gr` | `:GemiReload` | Force reload changed files |
 
 ## Configuration
 

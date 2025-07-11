@@ -14,7 +14,7 @@ M.defaults = {
         title = ' Gemi ',
         prompt = 'Gemi: ',
     },
-    
+
     -- Keymaps
     keymaps = {
         toggle = '<leader>g',
@@ -22,16 +22,16 @@ M.defaults = {
         diff = '<leader>gd',
         stop = '<leader>gs',
     },
-    
+
     -- gemini-cli settings
     gemini = {
-        model = 'gemini-2.5-pro',  -- Use the correct model name
+        model = 'gemini-2.5-flash',  -- Use the correct model name
         debug = false,             -- Enable debug mode
         all_files = false,         -- Include all files in context
         yolo = true,               -- Automatically accept all actions
         checkpointing = true,      -- Enable checkpointing of file edits
     },
-    
+
     -- File tracking
     tracking = {
         auto_scan = true,
@@ -42,7 +42,7 @@ M.defaults = {
             '%.log$',
         },
     },
-    
+
     -- Installation
     install = {
         check_node = true,
@@ -63,14 +63,14 @@ end
 function M.get(key)
     local keys = vim.split(key, '.', { plain = true })
     local value = M.config
-    
+
     for _, k in ipairs(keys) do
         if value[k] == nil then
             return nil
         end
         value = value[k]
     end
-    
+
     return value
 end
 

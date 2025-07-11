@@ -18,6 +18,9 @@ function M.setup()
     if config.get('tracking.auto_scan') then
         M.create_snapshot('initial')
     end
+    
+    -- Set up auto-reload for newly opened files
+    M.setup_auto_reload_autocmds()
 end
 
 -- Create a snapshot of current file states
@@ -52,6 +55,7 @@ end
 function M._get_project_files()
     local exclude_patterns = config.get('tracking.exclude_patterns') or {}
     local files = {}
+    local logger = require('gemi.logger')
     
     -- Use git to get tracked files if in a git repo
     local handle = io.popen('git ls-files 2>/dev/null')
@@ -74,6 +78,7 @@ function M._get_project_files()
     
     -- If no git files found, fall back to recursive find
     if #files == 0 then
+        logger.info('No git files found, using find fallback')
         local find_handle = io.popen('find . -type f -not -path "./.git/*" 2>/dev/null | head -1000')
         if find_handle then
             for line in find_handle:lines() do
@@ -95,6 +100,39 @@ function M._get_project_files()
         end
     end
     
+    -- Also include any currently open buffers to ensure we catch changes
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_is_loaded(buf) then
+            local buf_name = vim.api.nvim_buf_get_name(buf)
+            if buf_name ~= '' then
+                local relative_path = vim.fn.fnamemodify(buf_name, ':.')
+                local should_exclude = false
+                
+                for _, pattern in ipairs(exclude_patterns) do
+                    if relative_path:match(pattern) then
+                        should_exclude = true
+                        break
+                    end
+                end
+                
+                if not should_exclude and vim.fn.filereadable(relative_path) == 1 then
+                    -- Check if not already in the list
+                    local found = false
+                    for _, existing in ipairs(files) do
+                        if existing == relative_path then
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        table.insert(files, relative_path)
+                    end
+                end
+            end
+        end
+    end
+    
+    logger.info('Found project files', { count = #files, sample = vim.list_slice(files, 1, 5) })
     return files
 end
 
@@ -111,15 +149,23 @@ end
 
 -- Scan for changes since last snapshot
 function M.scan_for_changes()
+    local logger = require('gemi.logger')
+    logger.info('Starting scan for changes')
+    
     local latest_snapshot = M._get_latest_snapshot()
     if not latest_snapshot then
+        logger.info('No baseline snapshot found. Creating one now...')
         vim.notify('No baseline snapshot found. Creating one now...', vim.log.levels.INFO)
         M.create_snapshot('baseline')
         return {}
     end
     
+    logger.info('Found snapshot', { snapshot_name = latest_snapshot.name, files_count = vim.tbl_count(latest_snapshot.files) })
+    
     local changed_files = {}
     local current_files = M._get_project_files()
+    
+    logger.info('Current project files', { count = #current_files })
     
     -- Check for modified and new files
     for _, file in ipairs(current_files) do
@@ -129,6 +175,7 @@ function M.scan_for_changes()
         if current_content then
             if not snapshot_data then
                 -- New file
+                logger.info('New file detected', { file = file })
                 table.insert(changed_files, {
                     file = file,
                     type = 'added',
@@ -137,6 +184,7 @@ function M.scan_for_changes()
                 })
             elseif current_content ~= snapshot_data.content then
                 -- Modified file
+                logger.info('Modified file detected', { file = file })
                 table.insert(changed_files, {
                     file = file,
                     type = 'modified',
@@ -150,6 +198,7 @@ function M.scan_for_changes()
     -- Check for deleted files
     for file, _ in pairs(latest_snapshot.files) do
         if vim.fn.filereadable(file) == 0 then
+            logger.info('Deleted file detected', { file = file })
             table.insert(changed_files, {
                 file = file,
                 type = 'deleted',
@@ -159,14 +208,19 @@ function M.scan_for_changes()
         end
     end
     
+    logger.info('Scan complete', { changed_files_count = #changed_files })
     M._state.changed_files = changed_files
     
     -- Create new snapshot after detecting changes
     if #changed_files > 0 then
+        logger.info('Creating post-changes snapshot')
         M.create_snapshot('post_changes')
         
         -- Auto-reload changed files in Neovim
+        logger.info('Auto-reloading changed files')
         M.auto_reload_changed_files(changed_files)
+    else
+        logger.info('No changes detected')
     end
     
     return changed_files
@@ -347,30 +401,84 @@ end
 
 -- Auto-reload changed files in Neovim
 function M.auto_reload_changed_files(changed_files)
+    local logger = require('gemi.logger')
+    local reloaded_files = {}
+    
+    logger.info('Starting auto-reload process', { files_to_check = #changed_files })
+    
     for _, change in ipairs(changed_files) do
         if change.type == 'modified' or change.type == 'added' then
-            local filepath = change.file
+            local filepath = vim.fn.fnamemodify(change.file, ':p')
+            logger.info('Checking file for reload', { file = change.file, full_path = filepath })
             
             -- Check if file is currently open in any buffer
             for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-                if vim.api.nvim_buf_is_valid(buf) then
+                if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_is_loaded(buf) then
                     local buf_name = vim.api.nvim_buf_get_name(buf)
-                    if buf_name == vim.fn.fnamemodify(filepath, ':p') then
-                        -- File is open, reload it
+                    local buf_path = vim.fn.fnamemodify(buf_name, ':p')
+                    
+                    -- Multiple ways to match the file
+                    local match = false
+                    if buf_path == filepath then
+                        match = true
+                    elseif buf_name == change.file then
+                        match = true
+                    elseif buf_name == vim.fn.fnamemodify(change.file, ':p') then
+                        match = true
+                    elseif vim.fn.fnamemodify(buf_name, ':t') == vim.fn.fnamemodify(change.file, ':t') then
+                        -- Last resort: match by filename only
+                        match = true
+                    end
+                    
+                    if match then
+                        logger.info('Found buffer to reload', { buf = buf, file = change.file, buf_name = buf_name, buf_path = buf_path, filepath = filepath })
+                        
+                        -- File is open, reload it immediately
                         vim.schedule(function()
-                            -- Save cursor position
-                            local cursor_pos = vim.api.nvim_win_get_cursor(0)
+                            -- Find all windows showing this buffer
+                            local windows = {}
+                            for _, win in ipairs(vim.api.nvim_list_wins()) do
+                                if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+                                    table.insert(windows, win)
+                                end
+                            end
                             
-                            -- Reload the buffer
-                            vim.api.nvim_buf_call(buf, function()
-                                vim.cmd('checktime')
-                                vim.cmd('edit!')
+                            logger.info('Reloading buffer', { buf = buf, windows_count = #windows })
+                            
+                            -- Save cursor positions for all windows
+                            local cursor_positions = {}
+                            for _, win in ipairs(windows) do
+                                if vim.api.nvim_win_is_valid(win) then
+                                    cursor_positions[win] = vim.api.nvim_win_get_cursor(win)
+                                end
+                            end
+                            
+                            -- Force reload the buffer content
+                            local success = pcall(function()
+                                -- Clear the modified flag to allow reload
+                                vim.api.nvim_buf_set_option(buf, 'modified', false)
+                                
+                                -- Use :e! to force reload from disk
+                                vim.api.nvim_buf_call(buf, function()
+                                    vim.cmd('silent! edit!')
+                                end)
                             end)
                             
-                            -- Restore cursor position if possible
-                            pcall(vim.api.nvim_win_set_cursor, 0, cursor_pos)
-                            
-                            -- Silent reload - no notification needed
+                            if success then
+                                logger.info('Successfully reloaded buffer', { buf = buf })
+                                
+                                -- Restore cursor positions for all windows
+                                for _, win in ipairs(windows) do
+                                    if vim.api.nvim_win_is_valid(win) and cursor_positions[win] then
+                                        pcall(vim.api.nvim_win_set_cursor, win, cursor_positions[win])
+                                    end
+                                end
+                                
+                                -- Track reloaded file
+                                table.insert(reloaded_files, change.file)
+                            else
+                                logger.error('Failed to reload buffer', { buf = buf, file = change.file })
+                            end
                         end)
                         break
                     end
@@ -378,6 +486,87 @@ function M.auto_reload_changed_files(changed_files)
             end
         end
     end
+    
+    -- Show notification if files were reloaded
+    if #reloaded_files > 0 then
+        vim.schedule(function()
+            vim.notify(string.format('Auto-reloaded %d file(s): %s', 
+                #reloaded_files, 
+                table.concat(reloaded_files, ', ')), 
+                vim.log.levels.INFO)
+        end)
+    end
+end
+
+-- Set up autocmds for automatic file reloading
+function M.setup_auto_reload_autocmds()
+    local group = vim.api.nvim_create_augroup('gemi_auto_reload', { clear = true })
+    
+    -- Auto-reload files when they're opened if they were recently modified by gemi
+    vim.api.nvim_create_autocmd({'BufReadPost', 'BufNewFile'}, {
+        group = group,
+        callback = function(event)
+            -- Check if this file was in our recent changes
+            for _, change in ipairs(M._state.changed_files) do
+                local filepath = vim.fn.fnamemodify(change.file, ':p')
+                local buf_path = vim.fn.fnamemodify(event.match, ':p')
+                
+                if filepath == buf_path and (change.type == 'modified' or change.type == 'added') then
+                    -- File was recently modified by gemi, ensure it's up to date
+                    vim.schedule(function()
+                        vim.cmd('checktime')
+                    end)
+                    break
+                end
+            end
+        end
+    })
+    
+    -- Detect external file changes and auto-reload
+    vim.api.nvim_create_autocmd({'FocusGained', 'BufEnter', 'CursorHold'}, {
+        group = group,
+        callback = function()
+            -- Check for external file changes
+            vim.cmd('checktime')
+        end
+    })
+end
+
+-- Force reload all changed files immediately
+function M.force_reload_all_changed_files()
+    local changed_files = M._state.changed_files
+    if #changed_files > 0 then
+        M.auto_reload_changed_files(changed_files)
+    else
+        vim.notify('No changed files to reload', vim.log.levels.INFO)
+    end
+end
+
+-- Debug function to test change detection
+function M.debug_change_detection()
+    local logger = require('gemi.logger')
+    
+    logger.info('=== DEBUG: Change Detection ===')
+    logger.info('Current changed files', { count = #M._state.changed_files })
+    
+    for i, change in ipairs(M._state.changed_files) do
+        logger.info('Changed file ' .. i, { 
+            file = change.file, 
+            type = change.type,
+            old_content_length = #change.old_content,
+            new_content_length = #change.new_content
+        })
+    end
+    
+    logger.info('Available snapshots', { count = vim.tbl_count(M._state.snapshots) })
+    for name, snapshot in pairs(M._state.snapshots) do
+        logger.info('Snapshot', { name = name, timestamp = snapshot.timestamp, files_count = vim.tbl_count(snapshot.files) })
+    end
+    
+    local current_files = M._get_project_files()
+    logger.info('Current project files', { count = #current_files })
+    
+    return M._state.changed_files
 end
 
 -- Clear change tracking
