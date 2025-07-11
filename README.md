@@ -311,9 +311,3 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Acknowledgments
-
-- Google's gemini-cli for the AI capabilities
-- The Neovim community for excellent plugin development resources
-- Created by Nick Salerni
