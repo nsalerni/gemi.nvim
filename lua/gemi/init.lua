@@ -13,21 +13,17 @@ local function get_config()
   return require("gemi.config")
 end
 
-
 local function get_overlay()
   return require("gemi.overlay")
 end
-
 
 local function get_installer()
   return require("gemi.installer")
 end
 
-
 local function get_executor()
   return require("gemi.executor")
 end
-
 
 local function get_tracker()
   return require("gemi.tracker")
@@ -65,7 +61,6 @@ function M.toggle()
     overlay.show()
     M._state.ui_visible = true
   end
-
 end
 -- Install gemini-cli and dependencies
 
@@ -138,9 +133,7 @@ function M.execute_prompt(prompt)
       else
         vim.notify("Gemi failed: " .. (output or "Unknown error"), vim.log.levels.ERROR)
       end
-
     end
-
   end)
 end
 -- Handle rate limit errors with automatic model fallback
@@ -213,7 +206,6 @@ function M.handle_rate_limit_error(prompt, error_output)
       config.config.gemini.model = current_model
       logger.debug("Restored original model", { model = current_model })
     end
-
   end)
 end
 -- Stop current execution
@@ -225,7 +217,6 @@ function M.stop()
     M._state.is_running = false
     vim.notify("Gemi execution stopped", vim.log.levels.INFO)
   end
-
 end
 -- Force reload all changed files
 
@@ -276,7 +267,6 @@ function M.switch_model(model)
         vim.log.levels.ERROR
       )
     end
-
   else
     -- Show model selection menu
     vim.ui.select(valid_models, {
@@ -293,10 +283,8 @@ function M.switch_model(model)
         config.config.gemini.model = choice
         vim.notify(string.format("Switched to model: %s", choice), vim.log.levels.INFO)
       end
-
     end)
   end
-
 end
 -- Get current model
 

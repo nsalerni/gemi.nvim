@@ -39,7 +39,6 @@ function M.create_snapshot(name)
         size = vim.fn.getfsize(file),
       }
     end
-
   end
 
   M._state.snapshots[name] = snapshot
@@ -61,13 +60,11 @@ function M._get_project_files()
           should_exclude = true
           break
         end
-
       end
 
       if not should_exclude and vim.fn.filereadable(line) == 1 then
         table.insert(files, line)
       end
-
     end
 
     handle:close()
@@ -85,18 +82,15 @@ function M._get_project_files()
             should_exclude = true
             break
           end
-
         end
 
         if not should_exclude and vim.fn.filereadable(file) == 1 then
           table.insert(files, file)
         end
-
       end
 
       find_handle:close()
     end
-
   end
   -- Also include any currently open buffers to ensure we catch changes
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -110,7 +104,6 @@ function M._get_project_files()
             should_exclude = true
             break
           end
-
         end
 
         if not should_exclude and vim.fn.filereadable(relative_path) == 1 then
@@ -121,19 +114,14 @@ function M._get_project_files()
               found = true
               break
             end
-
           end
 
           if not found then
             table.insert(files, relative_path)
           end
-
         end
-
       end
-
     end
-
   end
 
   logger.debug("Found project files", { count = #files, sample = vim.list_slice(files, 1, 5) })
@@ -194,9 +182,7 @@ function M.scan_for_changes()
           new_content = current_content,
         })
       end
-
     end
-
   end
   -- Check for deleted files
   for file, _ in pairs(latest_snapshot.files) do
@@ -209,7 +195,6 @@ function M.scan_for_changes()
         new_content = "",
       })
     end
-
   end
 
   logger.debug("Scan complete", { changed_files_count = #changed_files })
@@ -236,7 +221,6 @@ function M._get_latest_snapshot()
       latest = snapshot
       latest_time = snapshot.timestamp
     end
-
   end
   return latest
 end
@@ -279,7 +263,6 @@ function M.show_diff(file_path)
         change = c
         break
       end
-
     end
 
     if not change then
@@ -292,7 +275,6 @@ function M.show_diff(file_path)
     -- Show diff selection menu
     M._show_diff_menu()
   end
-
 end
 -- Show diff selection menu
 
@@ -314,7 +296,6 @@ function M._show_diff_menu()
     if idx then
       M._show_file_diff(changed[idx])
     end
-
   end)
 end
 -- Show diff for a specific file change
@@ -434,7 +415,6 @@ function M.auto_reload_changed_files(changed_files)
                 if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
                   table.insert(windows, win)
                 end
-
               end
 
               logger.debug("Reloading buffer", { buf = buf, windows_count = #windows })
@@ -444,7 +424,6 @@ function M.auto_reload_changed_files(changed_files)
                 if vim.api.nvim_win_is_valid(win) then
                   cursor_positions[win] = vim.api.nvim_win_get_cursor(win)
                 end
-
               end
               -- Force reload the buffer content
               local success = pcall(function()
@@ -462,24 +441,18 @@ function M.auto_reload_changed_files(changed_files)
                   if vim.api.nvim_win_is_valid(win) and cursor_positions[win] then
                     pcall(vim.api.nvim_win_set_cursor, win, cursor_positions[win])
                   end
-
                 end
                 -- Track reloaded file
                 table.insert(reloaded_files, change.file)
               else
                 logger.error("Failed to reload buffer", { buf = buf, file = change.file })
               end
-
             end)
             break
           end
-
         end
-
       end
-
     end
-
   end
   -- Show notification if files were reloaded
   if #reloaded_files > 0 then
@@ -494,7 +467,6 @@ function M.auto_reload_changed_files(changed_files)
       )
     end)
   end
-
 end
 -- Set up autocmds for automatic file reloading
 
@@ -515,9 +487,7 @@ function M.setup_auto_reload_autocmds()
           end)
           break
         end
-
       end
-
     end,
   })
   -- Detect external file changes and auto-reload
@@ -538,7 +508,6 @@ function M.force_reload_all_changed_files()
   else
     vim.notify("No changed files to reload", vim.log.levels.INFO)
   end
-
 end
 -- Debug function to test change detection
 

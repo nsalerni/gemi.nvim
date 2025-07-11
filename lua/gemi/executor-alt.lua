@@ -82,12 +82,10 @@ function M.run_gemini_system(prompt, callback)
                 if item.text and item.text ~= "" then
                   table.insert(output_lines, item.text)
                 end
-
               end
 
               output = table.concat(output_lines, "\n")
             end
-
           end
 
           local success = exit_code == 0
@@ -147,11 +145,8 @@ function M.run_gemini_system(prompt, callback)
             if line and line ~= "" then
               table.insert(output_lines, line)
             end
-
           end
-
         end
-
       end,
       on_stderr = function(_, data)
         if data then
@@ -159,11 +154,8 @@ function M.run_gemini_system(prompt, callback)
             if line and line ~= "" then
               table.insert(error_lines, line)
             end
-
           end
-
         end
-
       end,
       on_exit = function(_, exit_code)
         vim.schedule(function()
@@ -218,6 +210,5 @@ function M.run_gemini_system(prompt, callback)
       end,
     }
   end
-
 end
 return M

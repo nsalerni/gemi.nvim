@@ -1,5 +1,5 @@
 -- lua/gemi/config.lua
--- Configuration management
+-- Configuration management for Gemi plugin
 local M = {}
 
 -- Default configuration

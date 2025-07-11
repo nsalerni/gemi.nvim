@@ -43,14 +43,12 @@ function M.log(level, message, data)
     if ok then
       overlay.auto_refresh()
     end
-
   end)
   -- Also print to neovim if it's important
   if level >= M.LEVELS.WARN then
     local level_name = M._get_level_name(level)
     vim.notify(string.format("[Gemi %s] %s", level_name, message), vim.log.levels.WARN)
   end
-
 end
 -- Get level name
 
@@ -59,7 +57,6 @@ function M._get_level_name(level)
     if val == level then
       return name
     end
-
   end
   return "UNKNOWN"
 end
@@ -69,16 +66,13 @@ function M.debug(message, data)
   M.log(M.LEVELS.DEBUG, message, data)
 end
 
-
 function M.info(message, data)
   M.log(M.LEVELS.INFO, message, data)
 end
 
-
 function M.warn(message, data)
   M.log(M.LEVELS.WARN, message, data)
 end
-
 
 function M.error(message, data)
   M.log(M.LEVELS.ERROR, message, data)
@@ -141,7 +135,6 @@ function M.show_logs()
 
       table.insert(lines, "")
     end
-
   end
 
   if #M._logs == 0 then

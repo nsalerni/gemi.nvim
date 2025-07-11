@@ -82,11 +82,8 @@ function M.run_gemini_jobstart(prompt, callback)
             -- Show output in real-time
             vim.notify("Gemi: " .. line, vim.log.levels.INFO)
           end
-
         end
-
       end
-
     end,
     on_stderr = function(job_id, data, event)
       logger.debug("STDERR callback triggered", {
@@ -103,11 +100,8 @@ function M.run_gemini_jobstart(prompt, callback)
             -- Show errors in real-time
             vim.notify("Gemi Error: " .. line, vim.log.levels.WARN)
           end
-
         end
-
       end
-
     end,
     on_exit = function(job_id, exit_code, event)
       logger.info("Job exit callback triggered", {
@@ -146,7 +140,6 @@ function M.run_gemini_jobstart(prompt, callback)
         logger.log_output(errors, true)
         callback(false, error_msg)
       end
-
     end,
     cwd = cwd,
     env = vim.fn.environ(),
@@ -187,7 +180,6 @@ function M.authenticate()
           vim.log.levels.ERROR
         )
       end
-
     end,
   })
 end
@@ -208,16 +200,13 @@ function M._run_auth_check()
         else
           vim.notify("Auth check error: " .. error_text, vim.log.levels.WARN)
         end
-
       end
-
     end,
     on_exit = function(_, exit_code)
       if exit_code ~= 0 then
         -- Likely needs authentication
         M._run_interactive_auth()
       end
-
     end,
     timeout = 5000, -- 5 second timeout for auth check
   })
@@ -254,7 +243,6 @@ function M._run_interactive_auth()
         else
           vim.notify("Authentication failed or was cancelled", vim.log.levels.ERROR)
         end
-
       end)
     end,
   })
@@ -264,13 +252,11 @@ function M._run_interactive_auth()
     if vim.api.nvim_win_is_valid(term_win) then
       vim.api.nvim_win_close(term_win, true)
     end
-
   end, opts)
   vim.keymap.set("t", "<C-c>", function()
     if vim.api.nvim_win_is_valid(term_win) then
       vim.api.nvim_win_close(term_win, true)
     end
-
   end, opts)
 end
 -- Check if gemini-cli is authenticated

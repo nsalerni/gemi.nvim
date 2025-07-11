@@ -23,14 +23,12 @@ local function get_node_version()
     if version then
       return version:gsub("^v", "") -- Remove 'v' prefix
     end
-
   end
   return nil
 end
 -- Compare version strings
 
 local function version_compare(v1, v2)
-
   local function normalize(v)
     local parts = {}
     for part in v:gmatch("[^%.]+") do
@@ -51,7 +49,6 @@ local function version_compare(v1, v2)
     if p1 < p2 then
       return -1
     end
-
   end
   return 0
 end
@@ -120,11 +117,8 @@ function M.install_gemini_cli()
           if line and line ~= "" then
             print("npm: " .. line)
           end
-
         end
-
       end
-
     end,
     on_stderr = function(_, data)
       if data and #data > 0 then
@@ -132,11 +126,8 @@ function M.install_gemini_cli()
           if line and line ~= "" then
             print("npm error: " .. line)
           end
-
         end
-
       end
-
     end,
     on_exit = function(_, code)
       if code == 0 then
@@ -144,7 +135,6 @@ function M.install_gemini_cli()
       else
         vim.notify("Failed to install gemini-cli (exit code: " .. code .. ")", vim.log.levels.ERROR)
       end
-
     end,
   })
   return job ~= 0
@@ -179,7 +169,6 @@ function M.install_dependencies()
     vim.notify("gemini-cli: " .. gemini_msg, vim.log.levels.INFO)
     vim.notify("All dependencies are ready!", vim.log.levels.INFO)
   end
-
 end
 -- Check all dependencies
 

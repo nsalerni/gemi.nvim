@@ -39,7 +39,6 @@ vim.api.nvim_create_user_command("GemiModel", function(opts)
   else
     require("gemi").switch_model()
   end
-
 end, {
   desc = "Switch Gemini model",
   nargs = "?",

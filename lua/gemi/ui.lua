@@ -27,7 +27,6 @@ local function create_input_buffer()
     if text and text ~= "" then
       M.execute_prompt(text)
     end
-
   end)
   return buf
 end
@@ -129,7 +128,6 @@ function M.update_status(message)
     vim.api.nvim_buf_set_lines(M._state.status_buf, 0, -1, false, { message })
     vim.api.nvim_buf_set_option(M._state.status_buf, "modifiable", false)
   end
-
 end
 -- Execute prompt
 

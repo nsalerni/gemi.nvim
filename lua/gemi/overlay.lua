@@ -49,7 +49,6 @@ local function create_prompt_buffer()
     if text and text ~= "" then
       M.execute_prompt(text)
     end
-
   end)
   return buf
 end
@@ -93,7 +92,6 @@ local function start_spinner()
       else
         M.stop_spinner()
       end
-
     end)
   )
 end
@@ -105,7 +103,6 @@ function M.stop_spinner()
     M._state.spinner_timer:close()
     M._state.spinner_timer = nil
   end
-
 end
 -- Update the logs section
 
@@ -150,7 +147,6 @@ function M.update_logs()
           for _, output_line in ipairs(output_lines) do
             table.insert(lines, "    " .. output_line)
           end
-
         else
           -- For other data, apply truncation
           value_str = value_str:gsub("\n", " "):gsub("\r", " ")
@@ -160,9 +156,7 @@ function M.update_logs()
 
           table.insert(lines, string.format("  %s: %s", key, value_str))
         end
-
       end
-
     end
 
     table.insert(lines, "")
@@ -184,7 +178,6 @@ function M.update_logs()
   if M._state.main_win and vim.api.nvim_win_is_valid(M._state.main_win) then
     vim.api.nvim_win_set_cursor(M._state.main_win, { #lines, 0 })
   end
-
 end
 -- Show the overlay
 
@@ -218,7 +211,6 @@ function M.show()
     M.hide()
   end
 
-
   local function toggle_focus()
     if vim.api.nvim_get_current_win() == M._state.prompt_win then
       vim.api.nvim_set_current_win(M._state.main_win)
@@ -226,7 +218,6 @@ function M.show()
       vim.api.nvim_set_current_win(M._state.prompt_win)
       vim.cmd("startinsert")
     end
-
   end
   -- Keymaps for both windows
   local main_opts = { buffer = M._state.main_buf, silent = true }
@@ -294,7 +285,6 @@ function M.hide()
       local text = lines[1] or ""
       M._state.saved_prompt_text = text
     end
-
   end
   -- Close windows
   if M._state.main_win and vim.api.nvim_win_is_valid(M._state.main_win) then
@@ -333,7 +323,6 @@ function M.execute_prompt(prompt)
   else
     M._execute_prompt_internal(prompt)
   end
-
 end
 -- Internal execute function
 
@@ -371,7 +360,6 @@ function M.auto_refresh()
   if M._state.is_visible then
     M.update_logs()
   end
-
 end
 -- Start execution (called from executor)
 
