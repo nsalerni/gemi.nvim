@@ -11,7 +11,6 @@ M._state = {
   is_visible = false,
 }
 -- Create input buffer
-
 local function create_input_buffer()
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(buf, "buftype", "prompt")
@@ -31,7 +30,6 @@ local function create_input_buffer()
   return buf
 end
 -- Calculate window dimensions
-
 local function get_window_config()
   local ui_config = config.get("ui")
   local screen_width = vim.o.columns
@@ -62,7 +60,6 @@ local function get_window_config()
   }
 end
 -- Show the UI
-
 function M.show()
   if M._state.is_visible then
     return
@@ -79,11 +76,9 @@ function M.show()
     "Normal:GemiNormal,FloatBorder:GemiBorder"
   )
   -- Set up keymaps for the input window (fast)
-
   local function close_ui()
     M.hide()
   end
-
   local opts = { buffer = M._state.input_buf, silent = true }
   vim.keymap.set("i", "<Esc>", close_ui, opts)
   vim.keymap.set("n", "<Esc>", close_ui, opts)
@@ -94,7 +89,6 @@ function M.show()
   M._state.is_visible = true
 end
 -- Hide the UI
-
 function M.hide()
   if not M._state.is_visible then
     return
@@ -103,7 +97,6 @@ function M.hide()
   if M._state.input_win and vim.api.nvim_win_is_valid(M._state.input_win) then
     vim.api.nvim_win_close(M._state.input_win, true)
   end
-
   if M._state.status_win and vim.api.nvim_win_is_valid(M._state.status_win) then
     vim.api.nvim_win_close(M._state.status_win, true)
   end
@@ -115,14 +108,12 @@ function M.hide()
   M._state.is_visible = false
 end
 -- Update status display
-
 function M.update_status(message)
   if not M._state.is_visible then
     -- If UI is hidden, show notification instead
     vim.notify(message, vim.log.levels.INFO)
     return
   end
-
   if M._state.status_buf and vim.api.nvim_buf_is_valid(M._state.status_buf) then
     vim.api.nvim_buf_set_option(M._state.status_buf, "modifiable", true)
     vim.api.nvim_buf_set_lines(M._state.status_buf, 0, -1, false, { message })
@@ -130,7 +121,6 @@ function M.update_status(message)
   end
 end
 -- Execute prompt
-
 function M.execute_prompt(prompt)
   -- Clear the input
   if M._state.input_buf and vim.api.nvim_buf_is_valid(M._state.input_buf) then
@@ -142,7 +132,6 @@ function M.execute_prompt(prompt)
   require("gemi").execute_prompt(prompt)
 end
 -- Setup function
-
 function M.setup()
   -- Define highlight groups (fast operation)
   vim.api.nvim_set_hl(0, "GemiNormal", { link = "Normal" })
@@ -152,7 +141,6 @@ end
 -- Pre-initialize UI setup to avoid delays
 M.setup()
 -- Check if UI is visible
-
 function M.is_visible()
   return M._state.is_visible
 end

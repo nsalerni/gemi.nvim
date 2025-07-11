@@ -2,20 +2,30 @@
 local M = {}
 local config = require("gemi.config")
 local logger = require("gemi.logger")
+-- Check if error output indicates authentication issues
+local function is_auth_error(output)
+  if not output then
+    return false
+  end
+  local output_lower = output:lower()
+  return output_lower:find("authentication")
+    or output_lower:find("auth")
+    or output_lower:find("login")
+    or output_lower:find("credential")
+    or output_lower:find("unauthenticated")
+    or output_lower:find("permission denied")
+end
 -- Check if asyncrun.vim is available
-
 local function has_asyncrun()
   return vim.fn.exists(":AsyncRun") == 2
 end
 -- Execute gemini command with prompt using asyncrun.vim
-
 function M.run_gemini_system(prompt, callback)
   if not prompt or prompt == "" then
     logger.error("No prompt provided")
     callback(false, "No prompt provided")
     return nil
   end
-
   logger.debug("Starting gemini execution", { prompt = prompt })
   -- Build command
   local cmd = "gemini --prompt " .. vim.fn.shellescape(prompt)
@@ -23,27 +33,22 @@ function M.run_gemini_system(prompt, callback)
   if model then
     cmd = cmd .. " --model " .. model
   end
-
   local debug = config.get("gemini.debug")
   if debug then
     cmd = cmd .. " --debug"
   end
-
   local all_files = config.get("gemini.all_files")
   if all_files then
     cmd = cmd .. " --all_files"
   end
-
   local yolo = config.get("gemini.yolo")
   if yolo then
     cmd = cmd .. " --yolo"
   end
-
   local checkpointing = config.get("gemini.checkpointing")
   if checkpointing then
     cmd = cmd .. " --checkpointing"
   end
-
   logger.debug("Executing command", { cmd = cmd })
   -- Start execution state
   local overlay = require("gemi.overlay")
@@ -83,11 +88,9 @@ function M.run_gemini_system(prompt, callback)
                   table.insert(output_lines, item.text)
                 end
               end
-
               output = table.concat(output_lines, "\n")
             end
           end
-
           local success = exit_code == 0
           if success then
             logger.debug("Command completed successfully")
@@ -95,7 +98,6 @@ function M.run_gemini_system(prompt, callback)
             if output and output ~= "" then
               logger.log_output(output, false)
             end
-
             callback(true, output)
           else
             logger.error("Command failed", {
@@ -106,10 +108,14 @@ function M.run_gemini_system(prompt, callback)
             if output and output ~= "" then
               logger.log_output(output, true)
             end
-
-            callback(false, output)
+            -- Check for authentication errors and provide helpful message
+            local error_message = output
+            if is_auth_error(output) then
+              error_message = "Authentication required. Please run 'gemini' in your terminal to set up "
+                .. "authentication, then try again."
+            end
+            callback(false, error_message)
           end
-
           overlay.auto_refresh()
           -- Clean up autocmd
           vim.api.nvim_del_augroup_by_id(group)
@@ -169,7 +175,6 @@ function M.run_gemini_system(prompt, callback)
             if output and output ~= "" then
               logger.log_output(output, false)
             end
-
             callback(true, output)
           else
             local error_msg = errors ~= "" and errors
@@ -182,10 +187,13 @@ function M.run_gemini_system(prompt, callback)
             if error_msg and error_msg ~= "" then
               logger.log_output(error_msg, true)
             end
-
+            -- Check for authentication errors and provide helpful message
+            if is_auth_error(error_msg) then
+              error_msg = "Authentication required. Please run 'gemini' in your terminal to set up "
+                .. "authentication, then try again."
+            end
             callback(false, error_msg)
           end
-
           overlay.auto_refresh()
         end)
       end,
@@ -198,7 +206,6 @@ function M.run_gemini_system(prompt, callback)
       callback(false, "Failed to start gemini command")
       return nil
     end
-
     logger.debug("Job started (jobstart mode)", { job_id = job })
     return {
       job_id = job,

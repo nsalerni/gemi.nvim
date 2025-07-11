@@ -4,21 +4,18 @@ local M = {}
 local config = require("gemi.config")
 local logger = require("gemi.logger")
 -- Execute gemini command with prompt
-
 function M.run_gemini(prompt, callback)
   -- Try alternative executor first
   local alt_executor = require("gemi.executor-alt")
   return alt_executor.run_gemini_system(prompt, callback)
 end
 -- Original jobstart implementation (for reference)
-
 function M.run_gemini_jobstart(prompt, callback)
   if not prompt or prompt == "" then
     logger.error("No prompt provided")
     callback(false, "No prompt provided")
     return nil
   end
-
   logger.info("Starting gemini execution", { prompt = prompt })
   -- Escape the prompt for shell execution
   local escaped_prompt = vim.fn.shellescape(prompt)
@@ -50,7 +47,6 @@ function M.run_gemini_jobstart(prompt, callback)
   if checkpointing then
     table.insert(cmd, "--checkpointing")
   end
-
   local cwd = vim.fn.getcwd()
   logger.log_command(cmd, cwd)
   -- Debug: print the exact command that will be executed
@@ -133,7 +129,6 @@ function M.run_gemini_jobstart(prompt, callback)
           logger.warn("Gemi completed but produced no output")
           vim.notify("Gemi completed but produced no output", vim.log.levels.WARN)
         end
-
         callback(true, output)
       else
         local error_msg = errors ~= "" and errors or "Command failed with exit code " .. exit_code
@@ -151,7 +146,6 @@ function M.run_gemini_jobstart(prompt, callback)
     callback(false, "Failed to start gemini command")
     return nil
   end
-
   logger.info("Job started", { job_id = job })
   return {
     job_id = job,
@@ -160,119 +154,5 @@ function M.run_gemini_jobstart(prompt, callback)
       vim.fn.jobstop(job)
     end,
   }
-end
--- Run authentication flow
-
-function M.authenticate()
-  logger.info("Starting Google authentication for gemini-cli")
-  vim.notify("Starting Google authentication for gemini-cli...", vim.log.levels.INFO)
-  -- First check if already authenticated
-  vim.fn.jobstart("gemini --help", {
-    on_exit = function(_, exit_code)
-      if exit_code == 0 then
-        logger.info("gemini-cli found, checking authentication")
-        -- CLI is working, try a simple command to check auth
-        M._run_auth_check()
-      else
-        logger.error("gemini-cli not found")
-        vim.notify(
-          "gemini-cli not found. Please install it first with :GemiInstall",
-          vim.log.levels.ERROR
-        )
-      end
-    end,
-  })
-end
--- Check authentication status
-
-function M._run_auth_check()
-  vim.fn.jobstart('gemini --prompt "test"', {
-    on_stdout = function(_, _)
-      -- If we get output, auth is working
-      vim.notify("Authentication appears to be working", vim.log.levels.INFO)
-    end,
-    on_stderr = function(_, data)
-      if data then
-        local error_text = table.concat(data, "\n")
-        if error_text:find("auth") or error_text:find("login") or error_text:find("credential") then
-          -- Authentication needed
-          M._run_interactive_auth()
-        else
-          vim.notify("Auth check error: " .. error_text, vim.log.levels.WARN)
-        end
-      end
-    end,
-    on_exit = function(_, exit_code)
-      if exit_code ~= 0 then
-        -- Likely needs authentication
-        M._run_interactive_auth()
-      end
-    end,
-    timeout = 5000, -- 5 second timeout for auth check
-  })
-end
--- Run interactive authentication
-
-function M._run_interactive_auth()
-  vim.notify("Starting interactive authentication...", vim.log.levels.INFO)
-  vim.notify("A browser window should open for Google authentication", vim.log.levels.INFO)
-  -- Run gemini command that will trigger auth flow
-  -- We'll use a terminal buffer to handle the interactive parts
-  local term_buf = vim.api.nvim_create_buf(false, true)
-  local term_win = vim.api.nvim_open_win(term_buf, true, {
-    relative = "editor",
-    width = math.floor(vim.o.columns * 0.8),
-    height = math.floor(vim.o.lines * 0.6),
-    row = math.floor(vim.o.lines * 0.2),
-    col = math.floor(vim.o.columns * 0.1),
-    style = "minimal",
-    border = "rounded",
-    title = " Google Authentication ",
-    title_pos = "center",
-  })
-  -- Start terminal with gemini command
-  vim.fn.termopen('gemini --prompt "Hello, this is a test prompt for authentication"', {
-    on_exit = function(_, exit_code)
-      vim.schedule(function()
-        if vim.api.nvim_win_is_valid(term_win) then
-          vim.api.nvim_win_close(term_win, true)
-        end
-
-        if exit_code == 0 then
-          vim.notify("Authentication completed successfully!", vim.log.levels.INFO)
-        else
-          vim.notify("Authentication failed or was cancelled", vim.log.levels.ERROR)
-        end
-      end)
-    end,
-  })
-  -- Set up keymaps to close the terminal
-  local opts = { buffer = term_buf, silent = true }
-  vim.keymap.set("n", "<Esc>", function()
-    if vim.api.nvim_win_is_valid(term_win) then
-      vim.api.nvim_win_close(term_win, true)
-    end
-  end, opts)
-  vim.keymap.set("t", "<C-c>", function()
-    if vim.api.nvim_win_is_valid(term_win) then
-      vim.api.nvim_win_close(term_win, true)
-    end
-  end, opts)
-end
--- Check if gemini-cli is authenticated
-
-function M.is_authenticated()
-  -- This is a simple check - we could make it more robust
-  local handle = io.popen('gemini --prompt "test" 2>&1')
-  if handle then
-    local result = handle:read("*a")
-    handle:close()
-    -- Check for common authentication error patterns
-    if result:find("auth") or result:find("login") or result:find("credential") then
-      return false
-    end
-    return true
-  end
-  return false
 end
 return M

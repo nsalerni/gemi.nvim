@@ -2,7 +2,6 @@
 if vim.g.loaded_gemi_simple then
   return
 end
-
 vim.g.loaded_gemi_simple = 1
 -- Create a simple test command
 vim.api.nvim_create_user_command("GemiTest", function()

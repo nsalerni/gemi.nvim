@@ -10,7 +10,7 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
 - 🔃 **Auto-reload**: Automatically reloads modified files in Neovim after gemini CLI makes changes
 - 📁 **File Tracking**: Monitor and navigate files changed by Gemini
 - 📊 **Diff Viewer**: Side-by-side comparison of changes made by Gemini
-- 🔐 **Authentication**: Built-in Google authentication flow
+- 🔐 **Authentication**: Seamless integration with gemini-cli authentication
 - ⌨️ **Keyboard Shortcuts**: Quick access to all features
 
 ## Installation
@@ -65,9 +65,10 @@ require('gemi').setup()
    ```
 
 2. **Authenticate with Google**:
-   ```vim
-   :GemiAuth
+   ```bash
+   gemini
    ```
+   This will open a browser window for Google authentication. Complete the flow and return to your terminal.
 
 3. **Start using Gemi**:
    - Press `<leader>g` to open the prompt
@@ -81,7 +82,6 @@ require('gemi').setup()
 |---------|-------------|
 | `:GemiToggle` | Toggle the Gemi prompt interface |
 | `:GemiInstall` | Install gemini-cli and check dependencies |
-| `:GemiAuth` | Authenticate with Google |
 | `:GemiFiles` | Show files changed by Gemi |
 | `:GemiDiff` | Show diff view of changes |
 | `:GemiReload` | Force reload all files changed by Gemi |
@@ -96,7 +96,6 @@ require('gemi').setup()
 | `<leader>gf` | `:GemiFiles` | Show changed files |
 | `<leader>gd` | `:GemiDiff` | Show diff view |
 | `<leader>gs` | Stop execution | Stop current Gemi operation |
-| `<leader>ga` | `:GemiAuth` | Authenticate with Google |
 | `<leader>gi` | `:GemiInstall` | Install dependencies |
 | `<leader>gr` | `:GemiReload` | Force reload changed files |
 | `<leader>gm` | `:GemiModel` | Switch Gemini model |
@@ -125,9 +124,11 @@ require('gemi').setup({
   
   -- gemini-cli settings
   gemini = {
-    model = 'gemini-pro',    -- Gemini model to use
-    max_tokens = 4096,       -- Maximum tokens
-    temperature = 0.7,       -- Response creativity
+    model = 'gemini-2.5-flash', -- Default model with better rate limits
+    debug = false,               -- Enable debug mode
+    all_files = false,           -- Include all files in context
+    yolo = true,                 -- Automatically accept all actions
+    checkpointing = true,        -- Enable checkpointing of file edits
   },
   
   -- File tracking
@@ -243,12 +244,17 @@ This ensures minimal interruption when hitting usage limits!
 
 ## Authentication
 
-On first use, Gemi will prompt you to authenticate with Google:
+Before using Gemi, you need to authenticate with Google:
 
-1. Run `:GemiAuth` or use `<leader>ga`
+1. Open a terminal and run:
+   ```bash
+   gemini
+   ```
 2. A browser window will open for Google authentication
 3. Follow the Google authentication flow
-4. Return to Neovim to continue
+4. Return to your terminal to complete setup
+
+**Note**: If you encounter authentication errors while using the plugin, you'll be prompted to run `gemini` in your terminal to re-authenticate.
 
 ## Troubleshooting
 
@@ -267,9 +273,10 @@ sudo apt-get install -y nodejs
 ```
 
 ### Authentication Issues
-1. Try `:GemiAuth` to re-authenticate
+1. Run `gemini` in your terminal to re-authenticate
 2. Check if you have an active internet connection
 3. Ensure you have a Google account with access to Gemini
+4. If you see "Authentication required" messages, run `gemini` in your terminal to set up authentication
 
 ### No File Changes Detected
 The plugin tracks changes from when it starts. If you don't see changes:

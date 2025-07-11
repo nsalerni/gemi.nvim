@@ -3,7 +3,6 @@
 if vim.g.loaded_gemi then
   return
 end
-
 vim.g.loaded_gemi = 1
 -- Create user commands
 vim.api.nvim_create_user_command("GemiToggle", function()
@@ -12,9 +11,6 @@ end, { desc = "Toggle Gemi prompt interface" })
 vim.api.nvim_create_user_command("GemiInstall", function()
   require("gemi").install_cli()
 end, { desc = "Install gemini-cli and dependencies" })
-vim.api.nvim_create_user_command("GemiAuth", function()
-  require("gemi").authenticate()
-end, { desc = "Authenticate with Google for gemini-cli" })
 vim.api.nvim_create_user_command("GemiFiles", function()
   require("gemi").show_changed_files()
 end, { desc = "Show files changed by Gemi" })
@@ -66,9 +62,6 @@ end, { desc = "Show Gemi diff" })
 vim.keymap.set("n", "<leader>gs", function()
   require("gemi").stop()
 end, { desc = "Stop Gemi execution" })
-vim.keymap.set("n", "<leader>ga", function()
-  require("gemi").authenticate()
-end, { desc = "Authenticate Gemi" })
 vim.keymap.set("n", "<leader>gi", function()
   require("gemi").install_cli()
 end, { desc = "Install Gemi CLI" })

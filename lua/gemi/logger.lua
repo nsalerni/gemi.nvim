@@ -12,7 +12,6 @@ M.LEVELS = {
   ERROR = 4,
 }
 -- Check if debug logging is enabled
-
 function M.is_debug_enabled()
   local ok, config = pcall(require, "gemi.config")
   if ok then
@@ -21,13 +20,11 @@ function M.is_debug_enabled()
   return false
 end
 -- Add log entry
-
 function M.log(level, message, data)
   -- Skip debug messages unless debug is enabled
   if level == M.LEVELS.DEBUG and not M.is_debug_enabled() then
     return
   end
-
   local timestamp = os.date("%H:%M:%S")
   local log_entry = {
     timestamp = timestamp,
@@ -51,7 +48,6 @@ function M.log(level, message, data)
   end
 end
 -- Get level name
-
 function M._get_level_name(level)
   for name, val in pairs(M.LEVELS) do
     if val == level then
@@ -61,24 +57,19 @@ function M._get_level_name(level)
   return "UNKNOWN"
 end
 -- Log shortcuts
-
 function M.debug(message, data)
   M.log(M.LEVELS.DEBUG, message, data)
 end
-
 function M.info(message, data)
   M.log(M.LEVELS.INFO, message, data)
 end
-
 function M.warn(message, data)
   M.log(M.LEVELS.WARN, message, data)
 end
-
 function M.error(message, data)
   M.log(M.LEVELS.ERROR, message, data)
 end
 -- Log command execution
-
 function M.log_command(cmd, working_dir)
   M.info("Executing command", {
     command = table.concat(cmd, " "),
@@ -86,7 +77,6 @@ function M.log_command(cmd, working_dir)
   })
 end
 -- Log command output
-
 function M.log_output(output, is_error)
   local level = is_error and M.LEVELS.ERROR or M.LEVELS.INFO
   local message = is_error and "Command error output" or "Gemini response"
@@ -97,7 +87,6 @@ function M.log_output(output, is_error)
   })
 end
 -- Show logs in a buffer
-
 function M.show_logs()
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
@@ -129,18 +118,14 @@ function M.show_logs()
         if #value_str > 200 then
           value_str = value_str:sub(1, 200) .. "..."
         end
-
         table.insert(lines, string.format("  %s: %s", key, value_str))
       end
-
       table.insert(lines, "")
     end
   end
-
   if #M._logs == 0 then
     table.insert(lines, "No logs available for this session.")
   end
-
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
   -- Open in a new window
@@ -179,19 +164,16 @@ function M.show_logs()
   )
 end
 -- Clear logs
-
 function M.clear_logs()
   M._logs = {}
   M._current_session = os.date("%Y-%m-%d_%H-%M-%S")
   vim.notify("Gemi logs cleared", vim.log.levels.INFO)
 end
 -- Get current logs
-
 function M.get_logs()
   return M._logs
 end
 -- Get logs count
-
 function M.get_logs_count()
   return #M._logs
 end

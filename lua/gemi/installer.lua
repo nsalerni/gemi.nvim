@@ -3,7 +3,6 @@
 local M = {}
 local config = require("gemi.config")
 -- Check if a command exists
-
 local function command_exists(cmd)
   local handle = io.popen("command -v " .. cmd .. " 2>/dev/null")
   if handle then
@@ -14,7 +13,6 @@ local function command_exists(cmd)
   return false
 end
 -- Get Node.js version
-
 local function get_node_version()
   local handle = io.popen("node --version 2>/dev/null")
   if handle then
@@ -27,7 +25,6 @@ local function get_node_version()
   return nil
 end
 -- Compare version strings
-
 local function version_compare(v1, v2)
   local function normalize(v)
     local parts = {}
@@ -36,7 +33,6 @@ local function version_compare(v1, v2)
     end
     return parts
   end
-
   local parts1 = normalize(v1)
   local parts2 = normalize(v2)
   for i = 1, math.max(#parts1, #parts2) do
@@ -45,7 +41,6 @@ local function version_compare(v1, v2)
     if p1 > p2 then
       return 1
     end
-
     if p1 < p2 then
       return -1
     end
@@ -53,17 +48,14 @@ local function version_compare(v1, v2)
   return 0
 end
 -- Check Node.js installation
-
 function M.check_node()
   if not command_exists("node") then
     return false, "Node.js is not installed"
   end
-
   local version = get_node_version()
   if not version then
     return false, "Could not determine Node.js version"
   end
-
   local min_version = config.get("install.node_min_version")
   if version_compare(version, min_version) < 0 then
     return false, string.format("Node.js version %s is required (found %s)", min_version, version)
@@ -71,7 +63,6 @@ function M.check_node()
   return true, version
 end
 -- Check npm installation
-
 function M.check_npm()
   if not command_exists("npm") then
     return false, "npm is not installed"
@@ -79,7 +70,6 @@ function M.check_npm()
   return true, "npm is available"
 end
 -- Check gemini-cli installation
-
 function M.check_gemini_cli()
   if not command_exists("gemini") then
     return false, "gemini-cli is not installed"
@@ -87,7 +77,6 @@ function M.check_gemini_cli()
   return true, "gemini-cli is available"
 end
 -- Install Node.js (guide user)
-
 function M.install_node()
   local message = [[
 Node.js is required but not installed. Please install Node.js:
@@ -107,7 +96,6 @@ Windows:
   return false
 end
 -- Install gemini-cli
-
 function M.install_gemini_cli()
   vim.notify("Installing @google/gemini-cli...", vim.log.levels.INFO)
   local job = vim.fn.jobstart("npm install -g @google/gemini-cli", {
@@ -140,7 +128,6 @@ function M.install_gemini_cli()
   return job ~= 0
 end
 -- Install all dependencies
-
 function M.install_dependencies()
   vim.notify("Checking dependencies...", vim.log.levels.INFO)
   -- Check Node.js
@@ -150,7 +137,6 @@ function M.install_dependencies()
     M.install_node()
     return
   end
-
   vim.notify("Node.js: " .. node_msg, vim.log.levels.INFO)
   -- Check npm
   local npm_ok, npm_msg = M.check_npm()
@@ -158,7 +144,6 @@ function M.install_dependencies()
     vim.notify("npm check failed: " .. npm_msg, vim.log.levels.ERROR)
     return
   end
-
   vim.notify("npm: " .. npm_msg, vim.log.levels.INFO)
   -- Check gemini-cli
   local gemini_ok, gemini_msg = M.check_gemini_cli()
@@ -171,19 +156,16 @@ function M.install_dependencies()
   end
 end
 -- Check all dependencies
-
 function M.check_all_dependencies()
   local issues = {}
   local node_ok, node_msg = M.check_node()
   if not node_ok then
     table.insert(issues, "Node.js: " .. node_msg)
   end
-
   local npm_ok, npm_msg = M.check_npm()
   if not npm_ok then
     table.insert(issues, "npm: " .. npm_msg)
   end
-
   local gemini_ok, gemini_msg = M.check_gemini_cli()
   if not gemini_ok then
     table.insert(issues, "gemini-cli: " .. gemini_msg)

@@ -22,7 +22,6 @@ M._state = {
   spinner_timer = nil,
 }
 -- Create the main overlay buffer
-
 local function create_main_buffer()
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
@@ -34,7 +33,6 @@ local function create_main_buffer()
   return buf
 end
 -- Create the prompt buffer
-
 local function create_prompt_buffer()
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(buf, "buftype", "prompt")
@@ -53,7 +51,6 @@ local function create_prompt_buffer()
   return buf
 end
 -- Get window configuration
-
 local function get_window_config()
   local ui_config = config.get("ui") or {}
   local screen_width = vim.o.columns
@@ -75,12 +72,10 @@ local function get_window_config()
   }
 end
 -- Start spinner
-
 local function start_spinner()
   if M._state.spinner_timer then
     return
   end
-
   M._state.spinner_timer = vim.loop.new_timer()
   M._state.spinner_timer:start(
     0,
@@ -96,7 +91,6 @@ local function start_spinner()
   )
 end
 -- Stop spinner
-
 function M.stop_spinner()
   if M._state.spinner_timer then
     M._state.spinner_timer:stop()
@@ -105,7 +99,6 @@ function M.stop_spinner()
   end
 end
 -- Update the logs section
-
 function M.update_logs()
   if
     not M._state.is_visible
@@ -114,7 +107,6 @@ function M.update_logs()
   then
     return
   end
-
   local logs = logger.get_logs()
   local lines = {}
   -- Header with spinner if executing
@@ -123,7 +115,6 @@ function M.update_logs()
     local spinner = M._state.spinner_chars[M._state.spinner_index]
     header = header .. " " .. spinner .. " Executing..."
   end
-
   table.insert(lines, header)
   table.insert(lines, "")
   -- Show logs
@@ -153,15 +144,12 @@ function M.update_logs()
           if #value_str > 150 then
             value_str = value_str:sub(1, 150) .. "..."
           end
-
           table.insert(lines, string.format("  %s: %s", key, value_str))
         end
       end
     end
-
     table.insert(lines, "")
   end
-
   if #logs == 0 then
     table.insert(lines, "No logs yet. Enter a prompt below to get started.")
   end
@@ -180,7 +168,6 @@ function M.update_logs()
   end
 end
 -- Show the overlay
-
 function M.show()
   if M._state.is_visible then
     return
@@ -206,11 +193,9 @@ function M.show()
   })
   M._state.prompt_win = vim.api.nvim_open_win(M._state.prompt_buf, true, prompt_config)
   -- Set up keymaps
-
   local function close_overlay()
     M.hide()
   end
-
   local function toggle_focus()
     if vim.api.nvim_get_current_win() == M._state.prompt_win then
       vim.api.nvim_set_current_win(M._state.main_win)
@@ -272,7 +257,6 @@ function M.show()
   M.add_model_indicator()
 end
 -- Hide the overlay
-
 function M.hide()
   if not M._state.is_visible then
     return
@@ -290,11 +274,9 @@ function M.hide()
   if M._state.main_win and vim.api.nvim_win_is_valid(M._state.main_win) then
     vim.api.nvim_win_close(M._state.main_win, true)
   end
-
   if M._state.prompt_win and vim.api.nvim_win_is_valid(M._state.prompt_win) then
     vim.api.nvim_win_close(M._state.prompt_win, true)
   end
-
   if M._state.model_indicator_win and vim.api.nvim_win_is_valid(M._state.model_indicator_win) then
     vim.api.nvim_win_close(M._state.model_indicator_win, true)
   end
@@ -308,7 +290,6 @@ function M.hide()
   M._state.is_visible = false
 end
 -- Execute prompt
-
 function M.execute_prompt(prompt)
   -- Stop any currently running job first
   local gemi = require("gemi")
@@ -325,7 +306,6 @@ function M.execute_prompt(prompt)
   end
 end
 -- Internal execute function
-
 function M._execute_prompt_internal(prompt)
   -- Store the current prompt
   M._state.current_prompt = prompt
@@ -341,7 +321,6 @@ function M._execute_prompt_internal(prompt)
   require("gemi").execute_prompt(prompt)
 end
 -- Setup function
-
 function M.setup()
   -- Define highlight groups
   vim.api.nvim_set_hl(0, "GemiNormal", { link = "Normal" })
@@ -350,33 +329,28 @@ function M.setup()
   vim.api.nvim_set_hl(0, "GemiModelIndicator", { fg = "#8a8a8a", bg = "NONE", italic = true })
 end
 -- Check if overlay is visible
-
 function M.is_visible()
   return M._state.is_visible
 end
 -- Auto-refresh logs when new entries are added
-
 function M.auto_refresh()
   if M._state.is_visible then
     M.update_logs()
   end
 end
 -- Start execution (called from executor)
-
 function M.start_execution()
   M._state.is_executing = true
   start_spinner()
   M.update_logs()
 end
 -- Stop execution (called from executor)
-
 function M.stop_execution()
   M._state.is_executing = false
   M.stop_spinner()
   M.update_logs()
 end
 -- Add model indicator to bottom right corner
-
 function M.add_model_indicator()
   if not M._state.main_win or not vim.api.nvim_win_is_valid(M._state.main_win) then
     return
@@ -386,7 +360,6 @@ function M.add_model_indicator()
   if not ok then
     return
   end
-
   local current_model = gemi.get_current_model()
   if not current_model then
     return
@@ -414,7 +387,6 @@ function M.add_model_indicator()
   if M._state.model_indicator_buf and vim.api.nvim_buf_is_valid(M._state.model_indicator_buf) then
     vim.api.nvim_buf_delete(M._state.model_indicator_buf, { force = true })
   end
-
   M._state.model_indicator_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "buftype", "nofile")
   vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "bufhidden", "wipe")
@@ -431,7 +403,6 @@ function M.add_model_indicator()
   if M._state.model_indicator_win and vim.api.nvim_win_is_valid(M._state.model_indicator_win) then
     vim.api.nvim_win_close(M._state.model_indicator_win, true)
   end
-
   M._state.model_indicator_win = vim.api.nvim_open_win(M._state.model_indicator_buf, false, {
     relative = "editor",
     width = #model_text,
