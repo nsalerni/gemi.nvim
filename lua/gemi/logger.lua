@@ -81,11 +81,12 @@ end
 -- Log command output
 function M.log_output(output, is_error)
     local level = is_error and M.LEVELS.ERROR or M.LEVELS.INFO
-    local message = is_error and 'Command error output' or 'Command output'
+    local message = is_error and 'Command error output' or 'Gemini response'
     
     M.log(level, message, {
         output = output,
         is_error = is_error,
+        preserve_formatting = true,  -- Flag to preserve full output
     })
 end
 

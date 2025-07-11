@@ -6,7 +6,7 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
 
 - 🚀 **Easy Installation**: Automatically installs gemini-cli and dependencies
 - 🎯 **Minimal UI**: Toggleable prompt interface that stays out of your way
-- 🔄 **Real-time Execution**: Run gemini-cli in headless mode with live feedback
+- 🔄 **Non-blocking Execution**: Run gemini-cli without freezing the UI (requires asyncrun.vim)
 - 📁 **File Tracking**: Monitor and navigate files changed by Gemini
 - 📊 **Diff Viewer**: Side-by-side comparison of changes made by Gemini
 - 🔐 **Authentication**: Built-in Google authentication flow
@@ -19,6 +19,9 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
 ```lua
 {
   'your-username/gemi.nvim',
+  dependencies = {
+    'skywind3000/asyncrun.vim', -- Optional: for non-blocking execution
+  },
   config = function()
     require('gemi').setup({
       -- Optional configuration
@@ -32,6 +35,9 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
 ```lua
 use {
   'your-username/gemi.nvim',
+  requires = {
+    'skywind3000/asyncrun.vim', -- Optional: for non-blocking execution
+  },
   config = function()
     require('gemi').setup()
   end
@@ -41,6 +47,7 @@ use {
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
+Plug 'skywind3000/asyncrun.vim'  " Optional: for non-blocking execution
 Plug 'your-username/gemi.nvim'
 ```
 

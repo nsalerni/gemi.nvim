@@ -141,13 +141,22 @@ function M.update_logs()
                     value_str = tostring(value)
                 end
                 
-                -- Replace newlines and truncate
-                value_str = value_str:gsub('\n', ' '):gsub('\r', ' ')
-                if #value_str > 150 then
-                    value_str = value_str:sub(1, 150) .. '...'
+                -- Special handling for gemini output
+                if key == 'output' and entry.data.preserve_formatting then
+                    -- For gemini output, preserve newlines and show full content
+                    local output_lines = vim.split(value_str, '\n')
+                    table.insert(lines, string.format('  %s:', key))
+                    for _, output_line in ipairs(output_lines) do
+                        table.insert(lines, '    ' .. output_line)
+                    end
+                else
+                    -- For other data, apply truncation
+                    value_str = value_str:gsub('\n', ' '):gsub('\r', ' ')
+                    if #value_str > 150 then
+                        value_str = value_str:sub(1, 150) .. '...'
+                    end
+                    table.insert(lines, string.format('  %s: %s', key, value_str))
                 end
-                
-                table.insert(lines, string.format('  %s: %s', key, value_str))
             end
         end
         table.insert(lines, '')
