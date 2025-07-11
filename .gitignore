@@ -1,0 +1,50 @@
+# Lua
+*.lua~
+*.luac
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*~
+*.swp
+*.swo
+*.tmp
+.vscode/
+.idea/
+
+# Logs
+*.log
+*.out
+
+# Node.js (if using for development tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Neovim specific
+tags
+.luarc.json
+
+# Development and testing
+.test/
+*.test.lua
+coverage/
+
+# Build artifacts
+build/
+dist/
+*.tar.gz
+*.zip
+
+# Local configuration
+.env
+.env.local
+local.lua
