@@ -73,7 +73,7 @@ build:
 lint:
 	@echo "Running luacheck..."
 	@if command -v luacheck >/dev/null 2>&1; then \
-		luacheck lua/ plugin/ --config .luacheckrc || echo "Luacheck found issues"; \
+		luacheck lua/ plugin/ --config .luacheckrc || (echo "Luacheck found issues" && exit 1); \
 	else \
 		echo "luacheck not found. Install with: make install-tools"; \
 		exit 1; \
