@@ -5,6 +5,8 @@
 
 A Neovim plugin for seamless integration with Google's gemini-cli, providing an intuitive interface to interact with Gemini AI directly from your editor.
 
+*Note: This is not an official Google product.*
+
 ## Features
 
 - 🚀 **Easy Installation**: Automatically installs gemini-cli and dependencies
