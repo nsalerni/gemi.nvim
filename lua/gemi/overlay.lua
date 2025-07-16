@@ -187,7 +187,7 @@ function M.update_logs()
 			-- Handle other data
 			if entry.data then
 				for key, value in pairs(entry.data) do
-					local skip_keys = {"prompt", "output", "preserve_formatting", "is_error"}
+					local skip_keys = { "prompt", "output", "preserve_formatting", "is_error" }
 					local should_skip = false
 					for _, skip_key in ipairs(skip_keys) do
 						if key == skip_key then
@@ -535,9 +535,14 @@ function M._apply_syntax_highlighting(lines)
 			if timestamp_start then
 				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiUserPromptIcon", line_num, 0, 2)
 				vim.api.nvim_buf_add_highlight(
-					M._state.main_buf, ns_id, "GemiTimestamp", line_num, timestamp_start - 1, timestamp_end)
-				vim.api.nvim_buf_add_highlight(
-					M._state.main_buf, ns_id, "GemiUserPrompt", line_num, timestamp_end, -1)
+					M._state.main_buf,
+					ns_id,
+					"GemiTimestamp",
+					line_num,
+					timestamp_start - 1,
+					timestamp_end
+				)
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiUserPrompt", line_num, timestamp_end, -1)
 			end
 		-- Highlight assistant responses
 		elseif line:match("^🤖 %[") then
@@ -545,9 +550,21 @@ function M._apply_syntax_highlighting(lines)
 			if timestamp_start then
 				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiAssistantIcon", line_num, 0, 2)
 				vim.api.nvim_buf_add_highlight(
-					M._state.main_buf, ns_id, "GemiTimestamp", line_num, timestamp_start - 1, timestamp_end)
+					M._state.main_buf,
+					ns_id,
+					"GemiTimestamp",
+					line_num,
+					timestamp_start - 1,
+					timestamp_end
+				)
 				vim.api.nvim_buf_add_highlight(
-					M._state.main_buf, ns_id, "GemiAssistantResponse", line_num, timestamp_end, -1)
+					M._state.main_buf,
+					ns_id,
+					"GemiAssistantResponse",
+					line_num,
+					timestamp_end,
+					-1
+				)
 			end
 		-- Highlight errors
 		elseif line:match("^❌ %[") then
@@ -555,9 +572,14 @@ function M._apply_syntax_highlighting(lines)
 			if timestamp_start then
 				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiError", line_num, 0, 2)
 				vim.api.nvim_buf_add_highlight(
-					M._state.main_buf, ns_id, "GemiTimestamp", line_num, timestamp_start - 1, timestamp_end)
-				vim.api.nvim_buf_add_highlight(
-					M._state.main_buf, ns_id, "GemiError", line_num, timestamp_end, -1)
+					M._state.main_buf,
+					ns_id,
+					"GemiTimestamp",
+					line_num,
+					timestamp_start - 1,
+					timestamp_end
+				)
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiError", line_num, timestamp_end, -1)
 			end
 		-- Highlight info messages
 		elseif line:match("^ℹ️ %[") then
@@ -565,7 +587,13 @@ function M._apply_syntax_highlighting(lines)
 			if timestamp_start then
 				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiSuccess", line_num, 0, 2)
 				vim.api.nvim_buf_add_highlight(
-					M._state.main_buf, ns_id, "GemiTimestamp", line_num, timestamp_start - 1, timestamp_end)
+					M._state.main_buf,
+					ns_id,
+					"GemiTimestamp",
+					line_num,
+					timestamp_start - 1,
+					timestamp_end
+				)
 			end
 		-- Highlight separators
 		elseif line:match("^─+$") then
