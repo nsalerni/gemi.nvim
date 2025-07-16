@@ -2,6 +2,7 @@
 -- Installation and dependency checking
 local M = {}
 local config = require("gemi.config")
+
 -- Check if a command exists
 local function command_exists(cmd)
 	local handle = io.popen("command -v " .. cmd .. " 2>/dev/null")
@@ -12,6 +13,7 @@ local function command_exists(cmd)
 	end
 	return false
 end
+
 -- Get Node.js version
 local function get_node_version()
 	local handle = io.popen("node --version 2>/dev/null")
@@ -24,6 +26,7 @@ local function get_node_version()
 	end
 	return nil
 end
+
 -- Compare version strings
 local function version_compare(v1, v2)
 	local function normalize(v)
@@ -47,6 +50,7 @@ local function version_compare(v1, v2)
 	end
 	return 0
 end
+
 -- Check Node.js installation
 function M.check_node()
 	if not command_exists("node") then
@@ -62,6 +66,7 @@ function M.check_node()
 	end
 	return true, version
 end
+
 -- Check npm installation
 function M.check_npm()
 	if not command_exists("npm") then
@@ -69,6 +74,7 @@ function M.check_npm()
 	end
 	return true, "npm is available"
 end
+
 -- Check gemini-cli installation
 function M.check_gemini_cli()
 	if not command_exists("gemini") then
@@ -76,6 +82,7 @@ function M.check_gemini_cli()
 	end
 	return true, "gemini-cli is available"
 end
+
 -- Install Node.js (guide user)
 function M.install_node()
 	local message = [[
@@ -95,6 +102,7 @@ Windows:
 	vim.notify(message, vim.log.levels.INFO)
 	return false
 end
+
 -- Install gemini-cli
 function M.install_gemini_cli()
 	vim.notify("Installing @google/gemini-cli...", vim.log.levels.INFO)
@@ -127,9 +135,11 @@ function M.install_gemini_cli()
 	})
 	return job ~= 0
 end
+
 -- Install all dependencies
 function M.install_dependencies()
 	vim.notify("Checking dependencies...", vim.log.levels.INFO)
+
 	-- Check Node.js
 	local node_ok, node_msg = M.check_node()
 	if not node_ok then
@@ -138,6 +148,7 @@ function M.install_dependencies()
 		return
 	end
 	vim.notify("Node.js: " .. node_msg, vim.log.levels.INFO)
+
 	-- Check npm
 	local npm_ok, npm_msg = M.check_npm()
 	if not npm_ok then
@@ -145,6 +156,7 @@ function M.install_dependencies()
 		return
 	end
 	vim.notify("npm: " .. npm_msg, vim.log.levels.INFO)
+
 	-- Check gemini-cli
 	local gemini_ok, gemini_msg = M.check_gemini_cli()
 	if not gemini_ok then
@@ -155,6 +167,7 @@ function M.install_dependencies()
 		vim.notify("All dependencies are ready!", vim.log.levels.INFO)
 	end
 end
+
 -- Check all dependencies
 function M.check_all_dependencies()
 	local issues = {}

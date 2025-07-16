@@ -3,12 +3,14 @@
 local M = {}
 local config = require("gemi.config")
 local logger = require("gemi.logger")
+
 -- Execute gemini command with prompt
 function M.run_gemini(prompt, callback)
 	-- Try alternative executor first
 	local alt_executor = require("gemi.executor-alt")
 	return alt_executor.run_gemini_system(prompt, callback)
 end
+
 -- Original jobstart implementation (for reference)
 function M.run_gemini_jobstart(prompt, callback)
 	if not prompt or prompt == "" then
@@ -17,31 +19,38 @@ function M.run_gemini_jobstart(prompt, callback)
 		return nil
 	end
 	logger.info("Starting gemini execution", { prompt = prompt })
+
 	-- Escape the prompt for shell execution
 	local escaped_prompt = vim.fn.shellescape(prompt)
+
 	-- Build gemini command
 	local cmd = { "gemini", "--prompt", escaped_prompt }
+
 	-- Add model configuration if specified
 	local model = config.get("gemini.model")
 	if model then
 		table.insert(cmd, "--model")
 		table.insert(cmd, model)
 	end
+
 	-- Add debug flag if needed
 	local debug = config.get("gemini.debug")
 	if debug then
 		table.insert(cmd, "--debug")
 	end
+
 	-- Add all_files flag if needed
 	local all_files = config.get("gemini.all_files")
 	if all_files then
 		table.insert(cmd, "--all_files")
 	end
+
 	-- Add YOLO mode for automatic action acceptance
 	local yolo = config.get("gemini.yolo")
 	if yolo then
 		table.insert(cmd, "--yolo")
 	end
+
 	-- Add checkpointing for file edits
 	local checkpointing = config.get("gemini.checkpointing")
 	if checkpointing then
@@ -49,12 +58,14 @@ function M.run_gemini_jobstart(prompt, callback)
 	end
 	local cwd = vim.fn.getcwd()
 	logger.log_command(cmd, cwd)
+
 	-- Debug: print the exact command that will be executed
 	local cmd_str = table.concat(cmd, " ")
 	print("DEBUG: Executing command: " .. cmd_str)
 	vim.notify("Executing: " .. cmd_str, vim.log.levels.INFO)
 	local output_lines = {}
 	local error_lines = {}
+
 	-- Start the job with better output handling
 	local job = vim.fn.jobstart(cmd, {
 		on_stdout = function(job_id, data, event)

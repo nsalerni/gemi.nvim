@@ -2,6 +2,7 @@
 -- File change tracking and navigation
 local M = {}
 local config = require("gemi.config")
+
 -- State for tracking changes
 M._state = {
 	changed_files = {},
@@ -9,15 +10,18 @@ M._state = {
 	current_diff_buf = nil,
 	current_diff_win = nil,
 }
+
 -- Initialize file tracking
 function M.setup()
 	-- Create initial snapshot if auto_scan is enabled
 	if config.get("tracking.auto_scan") then
 		M.create_snapshot("initial")
 	end
+
 	-- Set up auto-reload for newly opened files
 	M.setup_auto_reload_autocmds()
 end
+
 -- Create a snapshot of current file states
 function M.create_snapshot(name)
 	name = name or os.date("%Y%m%d_%H%M%S")
@@ -26,6 +30,7 @@ function M.create_snapshot(name)
 		timestamp = os.time(),
 		files = {},
 	}
+
 	-- Get all files in the project (excluding patterns)
 	local files = M._get_project_files()
 	for _, file in ipairs(files) do
@@ -41,11 +46,13 @@ function M.create_snapshot(name)
 	M._state.snapshots[name] = snapshot
 	return snapshot
 end
+
 -- Get list of project files, excluding patterns
 function M._get_project_files()
 	local exclude_patterns = config.get("tracking.exclude_patterns") or {}
 	local files = {}
 	local logger = require("gemi.logger")
+
 	-- Use git to get tracked files if in a git repo
 	local handle = io.popen("git ls-files 2>/dev/null")
 	if handle then
@@ -63,6 +70,7 @@ function M._get_project_files()
 		end
 		handle:close()
 	end
+
 	-- If no git files found, fall back to recursive find
 	if #files == 0 then
 		logger.debug("No git files found, using find fallback")
@@ -84,6 +92,7 @@ function M._get_project_files()
 			find_handle:close()
 		end
 	end
+
 	-- Also include any currently open buffers to ensure we catch changes
 	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
 		if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_is_loaded(buf) then
@@ -116,6 +125,7 @@ function M._get_project_files()
 	logger.debug("Found project files", { count = #files, sample = vim.list_slice(files, 1, 5) })
 	return files
 end
+
 -- Safely read file content
 function M._read_file_safe(file)
 	local f = io.open(file, "r")
@@ -126,6 +136,7 @@ function M._read_file_safe(file)
 	end
 	return nil
 end
+
 -- Scan for changes since last snapshot
 function M.scan_for_changes()
 	local logger = require("gemi.logger")
@@ -144,6 +155,7 @@ function M.scan_for_changes()
 	local changed_files = {}
 	local current_files = M._get_project_files()
 	logger.debug("Current project files", { count = #current_files })
+
 	-- Check for modified and new files
 	for _, file in ipairs(current_files) do
 		local current_content = M._read_file_safe(file)
@@ -170,6 +182,7 @@ function M.scan_for_changes()
 			end
 		end
 	end
+
 	-- Check for deleted files
 	for file, _ in pairs(latest_snapshot.files) do
 		if vim.fn.filereadable(file) == 0 then
@@ -182,8 +195,10 @@ function M.scan_for_changes()
 			})
 		end
 	end
+
 	logger.debug("Scan complete", { changed_files_count = #changed_files })
 	M._state.changed_files = changed_files
+
 	-- Create new snapshot after detecting changes
 	if #changed_files > 0 then
 		logger.debug("Creating post-changes snapshot")
@@ -196,6 +211,7 @@ function M.scan_for_changes()
 	end
 	return changed_files
 end
+
 -- Get the latest snapshot
 function M._get_latest_snapshot()
 	local latest = nil
@@ -208,6 +224,7 @@ function M._get_latest_snapshot()
 	end
 	return latest
 end
+
 -- Show changed files in a quickfix list
 function M.show_changed_files()
 	local changed = M._state.changed_files
@@ -227,6 +244,7 @@ function M.show_changed_files()
 	vim.cmd("copen")
 	vim.notify(string.format("Found %d changed files", #changed), vim.log.levels.INFO)
 end
+
 -- Show diff for a specific file or all changes
 function M.show_diff(file_path)
 	local changed = M._state.changed_files
@@ -253,6 +271,7 @@ function M.show_diff(file_path)
 		M._show_diff_menu()
 	end
 end
+
 -- Show diff selection menu
 function M._show_diff_menu()
 	local changed = M._state.changed_files
@@ -272,16 +291,19 @@ function M._show_diff_menu()
 		end
 	end)
 end
+
 -- Show diff for a specific file change
 function M._show_file_diff(change)
 	-- Create temporary buffers for old and new content
 	local old_buf = vim.api.nvim_create_buf(false, true)
 	local new_buf = vim.api.nvim_create_buf(false, true)
+
 	-- Set content
 	local old_lines = vim.split(change.old_content, "\n", { plain = true })
 	local new_lines = vim.split(change.new_content, "\n", { plain = true })
 	vim.api.nvim_buf_set_lines(old_buf, 0, -1, false, old_lines)
 	vim.api.nvim_buf_set_lines(new_buf, 0, -1, false, new_lines)
+
 	-- Set buffer options
 	local function setup_diff_buffer(buf, title, readonly)
 		vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
@@ -292,24 +314,30 @@ function M._show_file_diff(change)
 		if readonly then
 			vim.api.nvim_buf_set_option(buf, "readonly", true)
 		end
+
 		-- Set filetype based on file extension
 		local ft = vim.filetype.match({ filename = change.file }) or "text"
 		vim.api.nvim_buf_set_option(buf, "filetype", ft)
+
 		-- Set buffer name
 		vim.api.nvim_buf_set_name(buf, title)
 	end
 	setup_diff_buffer(old_buf, change.file .. " (before)", true)
 	setup_diff_buffer(new_buf, change.file .. " (after)", false)
+
 	-- Open windows side by side
 	vim.cmd("tabnew")
 	vim.api.nvim_get_current_tabpage()
+
 	-- Left window (old content)
 	local left_win = vim.api.nvim_get_current_win()
 	vim.api.nvim_win_set_buf(left_win, old_buf)
+
 	-- Right window (new content)
 	vim.cmd("vsplit")
 	local right_win = vim.api.nvim_get_current_win()
 	vim.api.nvim_win_set_buf(right_win, new_buf)
+
 	-- Enable diff mode
 	vim.api.nvim_win_call(left_win, function()
 		vim.cmd("diffthis")
@@ -317,13 +345,16 @@ function M._show_file_diff(change)
 	vim.api.nvim_win_call(right_win, function()
 		vim.cmd("diffthis")
 	end)
+
 	-- Set window titles
 	vim.api.nvim_win_set_option(left_win, "winfixwidth", true)
 	vim.api.nvim_win_set_option(right_win, "winfixwidth", true)
+
 	-- Add keymaps for navigation
 	local function close_diff()
 		vim.cmd("tabclose")
 	end
+
 	local opts = { buffer = old_buf, silent = true }
 	vim.keymap.set("n", "q", close_diff, opts)
 	vim.keymap.set("n", "<Esc>", close_diff, opts)
@@ -332,10 +363,12 @@ function M._show_file_diff(change)
 	vim.keymap.set("n", "<Esc>", close_diff, opts)
 	vim.notify(string.format("Showing diff for %s (%s)", change.file, change.type), vim.log.levels.INFO)
 end
+
 -- Get current changed files
 function M.get_changed_files()
 	return M._state.changed_files
 end
+
 -- Auto-reload changed files in Neovim
 function M.auto_reload_changed_files(changed_files)
 	local logger = require("gemi.logger")
@@ -370,6 +403,7 @@ function M.auto_reload_changed_files(changed_files)
 							buf_path = buf_path,
 							filepath = filepath,
 						})
+
 						-- File is open, reload it immediately
 						vim.schedule(function()
 							-- Find all windows showing this buffer
@@ -380,6 +414,7 @@ function M.auto_reload_changed_files(changed_files)
 								end
 							end
 							logger.debug("Reloading buffer", { buf = buf, windows_count = #windows })
+
 							-- Save cursor positions for all windows
 							local cursor_positions = {}
 							for _, win in ipairs(windows) do
@@ -387,23 +422,28 @@ function M.auto_reload_changed_files(changed_files)
 									cursor_positions[win] = vim.api.nvim_win_get_cursor(win)
 								end
 							end
+
 							-- Force reload the buffer content
 							local success = pcall(function()
 								-- Clear the modified flag to allow reload
 								vim.api.nvim_buf_set_option(buf, "modified", false)
+
 								-- Use :e! to force reload from disk
 								vim.api.nvim_buf_call(buf, function()
 									vim.cmd("silent! edit!")
 								end)
 							end)
+
 							if success then
 								logger.debug("Successfully reloaded buffer", { buf = buf })
+
 								-- Restore cursor positions for all windows
 								for _, win in ipairs(windows) do
 									if vim.api.nvim_win_is_valid(win) and cursor_positions[win] then
 										pcall(vim.api.nvim_win_set_cursor, win, cursor_positions[win])
 									end
 								end
+
 								-- Track reloaded file
 								table.insert(reloaded_files, change.file)
 							else
@@ -416,6 +456,7 @@ function M.auto_reload_changed_files(changed_files)
 			end
 		end
 	end
+
 	-- Show notification if files were reloaded
 	if #reloaded_files > 0 then
 		vim.schedule(function()
@@ -426,9 +467,11 @@ function M.auto_reload_changed_files(changed_files)
 		end)
 	end
 end
+
 -- Set up autocmds for automatic file reloading
 function M.setup_auto_reload_autocmds()
 	local group = vim.api.nvim_create_augroup("gemi_auto_reload", { clear = true })
+
 	-- Auto-reload files when they're opened if they were recently modified by gemi
 	vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
 		group = group,
@@ -437,6 +480,7 @@ function M.setup_auto_reload_autocmds()
 			for _, change in ipairs(M._state.changed_files) do
 				local filepath = vim.fn.fnamemodify(change.file, ":p")
 				local buf_path = vim.fn.fnamemodify(event.match, ":p")
+
 				if filepath == buf_path and (change.type == "modified" or change.type == "added") then
 					-- File was recently modified by gemi, ensure it's up to date
 					vim.schedule(function()
@@ -447,6 +491,7 @@ function M.setup_auto_reload_autocmds()
 			end
 		end,
 	})
+
 	-- Detect external file changes and auto-reload
 	vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold" }, {
 		group = group,
@@ -456,6 +501,7 @@ function M.setup_auto_reload_autocmds()
 		end,
 	})
 end
+
 -- Force reload all changed files immediately
 function M.force_reload_all_changed_files()
 	local changed_files = M._state.changed_files
@@ -465,6 +511,7 @@ function M.force_reload_all_changed_files()
 		vim.notify("No changed files to reload", vim.log.levels.INFO)
 	end
 end
+
 -- Debug function to test change detection
 function M.debug_change_detection()
 	local logger = require("gemi.logger")
@@ -489,6 +536,7 @@ function M.debug_change_detection()
 	logger.info("Current project files", { count = #current_files })
 	return M._state.changed_files
 end
+
 -- Clear change tracking
 function M.clear_changes()
 	M._state.changed_files = {}

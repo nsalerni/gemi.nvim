@@ -1,5 +1,6 @@
 -- Main Gemi module
 local M = {}
+
 -- Plugin state
 M._state = {
 	is_running = false,
@@ -7,22 +8,28 @@ M._state = {
 	ui_visible = false,
 	initialized = false,
 }
+
 -- Lazy load modules
 local function get_config()
 	return require("gemi.config")
 end
+
 local function get_overlay()
 	return require("gemi.overlay")
 end
+
 local function get_installer()
 	return require("gemi.installer")
 end
+
 local function get_executor()
 	return require("gemi.executor")
 end
+
 local function get_tracker()
 	return require("gemi.tracker")
 end
+
 -- Setup function
 function M.setup(opts)
 	if M._state.initialized then
@@ -36,6 +43,7 @@ function M.setup(opts)
 	tracker.setup()
 	M._state.initialized = true
 end
+
 -- Toggle the overlay
 function M.toggle()
 	-- Skip full setup for just showing overlay - only initialize config if needed
@@ -44,6 +52,7 @@ function M.toggle()
 		config.setup({}) -- Use minimal config
 		M._state.initialized = true
 	end
+
 	local overlay = get_overlay()
 	if M._state.ui_visible then
 		overlay.hide()
@@ -53,6 +62,7 @@ function M.toggle()
 		M._state.ui_visible = true
 	end
 end
+
 -- Install gemini-cli and dependencies
 function M.install_cli()
 	if not M._state.initialized then
@@ -61,6 +71,7 @@ function M.install_cli()
 	local installer = get_installer()
 	installer.install_dependencies()
 end
+
 -- Show changed files
 function M.show_changed_files()
 	if not M._state.initialized then
@@ -69,6 +80,7 @@ function M.show_changed_files()
 	local tracker = get_tracker()
 	tracker.show_changed_files()
 end
+
 -- Show diff view
 function M.show_diff()
 	if not M._state.initialized then
@@ -77,17 +89,21 @@ function M.show_diff()
 	local tracker = get_tracker()
 	tracker.show_diff()
 end
+
 -- Execute gemini command
 function M.execute_prompt(prompt)
 	if not M._state.initialized then
 		M.setup()
 	end
+
 	if M._state.is_running then
 		vim.notify("Gemi is already running", vim.log.levels.WARN)
 		return
 	end
+
 	local executor = get_executor()
 	local tracker = get_tracker()
+
 	-- Create a snapshot before execution to capture the baseline
 	tracker.create_snapshot("pre_execution")
 	M._state.is_running = true
@@ -108,10 +124,12 @@ function M.execute_prompt(prompt)
 		end
 	end)
 end
+
 -- Handle rate limit errors with automatic model fallback
 function M.handle_rate_limit_error(prompt, error_output)
 	local current_model = M.get_current_model()
 	local fallback_model = M.get_fallback_model(current_model)
+
 	-- Log the fallback attempt
 	local logger = require("gemi.logger")
 	logger.info("Rate limit detected, attempting model fallback", {
@@ -120,11 +138,14 @@ function M.handle_rate_limit_error(prompt, error_output)
 		error_preview = error_output and tostring(error_output):sub(1, 100) or "No error details",
 	})
 	vim.notify(string.format("Rate limit hit for %s, trying %s...", current_model, fallback_model), vim.log.levels.WARN)
+
 	-- Switch to fallback model
 	local config = get_config()
 	config.config.gemini.model = fallback_model
+
 	-- Track that we're using fallback to avoid infinite loops
 	M._state.using_fallback = true
+
 	-- Retry with fallback model
 	local executor = get_executor()
 	local tracker = get_tracker()
@@ -169,6 +190,7 @@ function M.handle_rate_limit_error(prompt, error_output)
 		end
 	end)
 end
+
 -- Stop current execution
 function M.stop()
 	if M._state.current_job then
@@ -178,6 +200,7 @@ function M.stop()
 		vim.notify("Gemi execution stopped", vim.log.levels.INFO)
 	end
 end
+
 -- Force reload all changed files
 function M.force_reload_changed_files()
 	if not M._state.initialized then
@@ -186,6 +209,7 @@ function M.force_reload_changed_files()
 	local tracker = get_tracker()
 	tracker.force_reload_all_changed_files()
 end
+
 -- Debug change detection
 function M.debug_changes()
 	if not M._state.initialized then
@@ -194,6 +218,7 @@ function M.debug_changes()
 	local tracker = get_tracker()
 	return tracker.debug_change_detection()
 end
+
 -- Switch between gemini models
 function M.switch_model(model)
 	if not M._state.initialized then
@@ -236,6 +261,7 @@ function M.switch_model(model)
 		end)
 	end
 end
+
 -- Get current model
 function M.get_current_model()
 	if not M._state.initialized then
@@ -244,6 +270,7 @@ function M.get_current_model()
 	local config = get_config()
 	return config.get("gemini.model")
 end
+
 -- Get fallback model for rate limit errors
 function M.get_fallback_model(current_model)
 	local fallback_pairs = {
@@ -254,6 +281,7 @@ function M.get_fallback_model(current_model)
 	}
 	return fallback_pairs[current_model] or "gemini-2.5-pro"
 end
+
 -- Check if error is a rate limit error (429)
 function M.is_rate_limit_error(error_output)
 	if not error_output then

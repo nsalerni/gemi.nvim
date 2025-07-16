@@ -49,12 +49,15 @@ M.defaults = {
 		level = "INFO", -- Log level: DEBUG, INFO, WARN, ERROR
 	},
 }
+
 -- Current configuration
 M.config = {}
+
 -- Setup function
 function M.setup(opts)
 	M.config = vim.tbl_deep_extend("force", M.defaults, opts or {})
 end
+
 -- Get configuration value
 function M.get(key)
 	local keys = vim.split(key, ".", { plain = true })

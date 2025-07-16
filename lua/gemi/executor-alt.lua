@@ -2,6 +2,7 @@
 local M = {}
 local config = require("gemi.config")
 local logger = require("gemi.logger")
+
 -- Check if error output indicates authentication issues
 local function is_auth_error(output)
 	if not output then
@@ -15,10 +16,12 @@ local function is_auth_error(output)
 		or output_lower:find("unauthenticated")
 		or output_lower:find("permission denied")
 end
+
 -- Check if asyncrun.vim is available
 local function has_asyncrun()
 	return vim.fn.exists(":AsyncRun") == 2
 end
+
 -- Execute gemini command with prompt using asyncrun.vim
 function M.run_gemini_system(prompt, callback)
 	if not prompt or prompt == "" then
@@ -27,6 +30,7 @@ function M.run_gemini_system(prompt, callback)
 		return nil
 	end
 	logger.debug("Starting gemini execution", { prompt = prompt })
+
 	-- Build command
 	local cmd = "gemini --prompt " .. vim.fn.shellescape(prompt)
 	local model = config.get("gemini.model")
@@ -50,15 +54,18 @@ function M.run_gemini_system(prompt, callback)
 		cmd = cmd .. " --checkpointing"
 	end
 	logger.debug("Executing command", { cmd = cmd })
+
 	-- Start execution state
 	local overlay = require("gemi.overlay")
 	overlay.start_execution()
 	if has_asyncrun() then
 		-- Use asyncrun.vim for non-blocking execution
 		logger.debug("Using asyncrun.vim for non-blocking execution")
+
 		-- Create temporary output file
 		local temp_file = vim.fn.tempname()
 		local cmd_with_output = cmd .. " > " .. vim.fn.shellescape(temp_file) .. " 2>&1"
+
 		-- Set up asyncrun autocmd to handle completion
 		local group = vim.api.nvim_create_augroup("gemi_asyncrun", { clear = true })
 		vim.api.nvim_create_autocmd("User", {
@@ -68,9 +75,11 @@ function M.run_gemini_system(prompt, callback)
 				vim.schedule(function()
 					-- Stop execution state
 					overlay.stop_execution()
+
 					-- Get the result from asyncrun
 					local exit_code = vim.g.asyncrun_code or 0
 					local output = ""
+
 					-- Read output from temporary file
 					local file = io.open(temp_file, "r")
 					if file then
@@ -104,10 +113,12 @@ function M.run_gemini_system(prompt, callback)
 							exit_code = exit_code,
 							command = cmd,
 						})
+
 						-- Log the full output separately to preserve formatting
 						if output and output ~= "" then
 							logger.log_output(output, true)
 						end
+
 						-- Check for authentication errors and provide helpful message
 						local error_message = output
 						if is_auth_error(output) then
@@ -117,14 +128,17 @@ function M.run_gemini_system(prompt, callback)
 						callback(false, error_message)
 					end
 					overlay.auto_refresh()
+
 					-- Clean up autocmd
 					vim.api.nvim_del_augroup_by_id(group)
 				end)
 			end,
 			once = true,
 		})
+
 		-- Configure asyncrun to not auto-open quickfix
 		vim.g.asyncrun_open = 0
+
 		-- Run the command with asyncrun and redirect output to temp file
 		vim.cmd("AsyncRun " .. cmd_with_output)
 		logger.debug("Job started (asyncrun mode)", { temp_file = temp_file })

@@ -187,7 +187,7 @@ Problem: "Node.js is not installed"
 Solution: Install Node.js from https://nodejs.org/
 
 Problem: Authentication fails
-Solution: 
+Solution:
 - Run |:GemiAuth| to re-authenticate
 - Check internet connection
 - Ensure you have a Google account with Gemini access
