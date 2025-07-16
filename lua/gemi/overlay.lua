@@ -18,6 +18,7 @@ M._state = {
 	current_prompt = "",
 	saved_prompt_text = "", -- Persist text when toggling
 	is_executing = false,
+	execution_start_time = nil, -- Track when execution started
 	spinner_chars = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
 	spinner_index = 1,
 	spinner_timer = nil,
@@ -108,14 +109,34 @@ function M.update_logs()
 	local logs = logger.get_logs()
 	local lines = {}
 
-	-- Header with spinner if executing
+	-- Header with spinner and elapsed time if executing
 	local header = "=== Gemi ==="
 	if M._state.is_executing then
 		local spinner = M._state.spinner_chars[M._state.spinner_index]
-		header = header .. " " .. spinner .. " Executing..."
+		local elapsed = ""
+		if M._state.execution_start_time then
+			local elapsed_seconds = math.floor(vim.loop.hrtime() / 1000000000) - M._state.execution_start_time
+			elapsed = string.format(" (%ds)", elapsed_seconds)
+		end
+		header = header .. " " .. spinner .. " Executing..." .. elapsed
 	end
 
 	table.insert(lines, header)
+	table.insert(lines, "")
+
+	-- Show conversation context status
+	local conversation = require("gemi.conversation")
+	if conversation.is_context_enabled() then
+		local history_count = conversation.get_history_count()
+		if history_count > 0 then
+			local msg = string.format("📝 Conversation context: %d messages (press 'x' to clear, 'c' to toggle)", history_count)
+			table.insert(lines, msg)
+		else
+			table.insert(lines, "📝 Conversation context: enabled (press 'c' to disable)")
+		end
+	else
+		table.insert(lines, "📝 Conversation context: disabled (press 'c' to enable)")
+	end
 	table.insert(lines, "")
 
 	-- Show logs
@@ -266,6 +287,19 @@ function M.show()
 		M.update_logs()
 	end, main_opts)
 
+	-- Conversation management
+	vim.keymap.set("n", "c", function()
+		local conversation = require("gemi.conversation")
+		conversation.toggle_context()
+		M.update_logs()
+	end, main_opts)
+
+	vim.keymap.set("n", "x", function()
+		local conversation = require("gemi.conversation")
+		conversation.clear_history()
+		M.update_logs()
+	end, main_opts)
+
 	-- Set highlight groups
 	vim.api.nvim_win_set_option(M._state.main_win, "winhighlight", "Normal:GemiNormal,FloatBorder:GemiBorder")
 	vim.api.nvim_win_set_option(M._state.prompt_win, "winhighlight", "Normal:GemiNormal,FloatBorder:GemiBorder")
@@ -400,6 +434,7 @@ end
 -- Start execution (called from executor)
 function M.start_execution()
 	M._state.is_executing = true
+	M._state.execution_start_time = math.floor(vim.loop.hrtime() / 1000000000)
 	start_spinner()
 	M.update_logs()
 end
@@ -407,6 +442,7 @@ end
 -- Stop execution (called from executor)
 function M.stop_execution()
 	M._state.is_executing = false
+	M._state.execution_start_time = nil
 	M.stop_spinner()
 	M.update_logs()
 end

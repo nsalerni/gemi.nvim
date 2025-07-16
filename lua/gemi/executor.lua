@@ -121,6 +121,13 @@ function M.run_gemini_jobstart(prompt, callback)
 			local success = exit_code == 0
 			local output = table.concat(output_lines, "\n")
 			local errors = table.concat(error_lines, "\n")
+			-- Clean up gemini CLI output by removing credential loading messages
+			if output then
+				output = output:gsub("^Loaded cached credentials%.\n", "")
+				output = output:gsub("^Loaded cached credentials%.", "")
+				output = output:gsub("\nLoaded cached credentials%.\n", "\n")
+				output = output:gsub("\nLoaded cached credentials%.", "")
+			end
 			logger.info("Command completed", {
 				exit_code = exit_code,
 				success = success,

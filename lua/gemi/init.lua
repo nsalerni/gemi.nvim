@@ -41,7 +41,32 @@ function M.setup(opts)
 	overlay.setup()
 	local tracker = get_tracker()
 	tracker.setup()
+	-- Create user commands
+	vim.api.nvim_create_user_command("Gemi", M.show, {})
+	vim.api.nvim_create_user_command("GemiToggle", M.toggle, {})
+	vim.api.nvim_create_user_command("GemiStop", M.stop, {})
+	vim.api.nvim_create_user_command("GemiShowDiff", M.show_diff, {})
+	vim.api.nvim_create_user_command("GemiShowChangedFiles", M.show_changed_files, {})
+	vim.api.nvim_create_user_command("GemiLogs", function()
+		require("gemi.logger").show_logs()
+	end, {})
+	vim.api.nvim_create_user_command("GemiClearConversation", M.clear_conversation, {})
+	vim.api.nvim_create_user_command("GemiToggleContext", M.toggle_conversation_context, {})
 	M._state.initialized = true
+end
+
+-- Show the overlay
+function M.show()
+	-- Skip full setup for just showing overlay - only initialize config if needed
+	if not M._state.initialized then
+		local config = get_config()
+		config.setup({}) -- Use minimal config
+		M._state.initialized = true
+	end
+
+	local overlay = get_overlay()
+	overlay.show()
+	M._state.ui_visible = true
 end
 
 -- Toggle the overlay
@@ -103,14 +128,23 @@ function M.execute_prompt(prompt)
 
 	local executor = get_executor()
 	local tracker = get_tracker()
+	local conversation = require("gemi.conversation")
+
+	-- Add user message to conversation history
+	conversation.add_user_message(prompt)
+
+	-- Build context prompt that includes conversation history
+	local context_prompt = conversation.build_context_prompt(prompt)
 
 	-- Create a snapshot before execution to capture the baseline
 	tracker.create_snapshot("pre_execution")
 	M._state.is_running = true
-	M._state.current_job = executor.run_gemini(prompt, function(success, output)
+	M._state.current_job = executor.run_gemini(context_prompt, function(success, output)
 		M._state.is_running = false
 		M._state.current_job = nil
 		if success then
+			-- Add assistant response to conversation history
+			conversation.add_assistant_response(output)
 			-- Scan for changes after execution
 			tracker.scan_for_changes()
 		-- No success notification - let it happen silently
@@ -293,4 +327,21 @@ function M.is_rate_limit_error(error_output)
 		or error_str:find("quota")
 		or error_str:find("too many requests")
 end
+
+-- Conversation management functions
+function M.clear_conversation()
+	local conversation = require("gemi.conversation")
+	conversation.clear_history()
+end
+
+function M.toggle_conversation_context()
+	local conversation = require("gemi.conversation")
+	return conversation.toggle_context()
+end
+
+function M.get_conversation_history()
+	local conversation = require("gemi.conversation")
+	return conversation.get_history()
+end
+
 return M

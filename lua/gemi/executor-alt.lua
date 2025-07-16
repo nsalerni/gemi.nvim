@@ -104,6 +104,13 @@ function M.run_gemini_system(prompt, callback)
 							output = table.concat(output_lines, "\n")
 						end
 					end
+					-- Clean up gemini CLI output by removing credential loading messages
+					if output then
+						output = output:gsub("^Loaded cached credentials%.\n", "")
+						output = output:gsub("^Loaded cached credentials%.", "")
+						output = output:gsub("\nLoaded cached credentials%.\n", "\n")
+						output = output:gsub("\nLoaded cached credentials%.", "")
+					end
 					local success = exit_code == 0
 					if success then
 						logger.debug("Command completed successfully")
@@ -118,7 +125,7 @@ function M.run_gemini_system(prompt, callback)
 							command = table.concat(cmd, " "),
 						})
 
-						-- Log the full output separately to preserve formatting
+						-- Log the full error output separately to preserve formatting
 						if output and output ~= "" then
 							logger.log_output(output, true)
 						end
@@ -191,6 +198,13 @@ function M.run_gemini_system(prompt, callback)
 					local success = exit_code == 0
 					local output = table.concat(output_lines, "\n")
 					local errors = table.concat(error_lines, "\n")
+					-- Clean up gemini CLI output by removing credential loading messages
+					if output then
+						output = output:gsub("^Loaded cached credentials%.\n", "")
+						output = output:gsub("^Loaded cached credentials%.", "")
+						output = output:gsub("\nLoaded cached credentials%.\n", "\n")
+						output = output:gsub("\nLoaded cached credentials%.", "")
+					end
 					if success then
 						logger.debug("Command completed successfully")
 						-- Log the full output separately to preserve formatting
@@ -204,7 +218,7 @@ function M.run_gemini_system(prompt, callback)
 							exit_code = exit_code,
 							command = table.concat(cmd, " "),
 						})
-						-- Log the full output separately to preserve formatting
+						-- Log the full error output separately to preserve formatting
 						if error_msg and error_msg ~= "" then
 							logger.log_output(error_msg, true)
 						end
