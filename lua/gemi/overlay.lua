@@ -45,8 +45,8 @@ local function create_prompt_buffer()
 	vim.api.nvim_buf_set_option(buf, "swapfile", false)
 	vim.api.nvim_buf_set_option(buf, "modifiable", true)
 	vim.api.nvim_buf_set_option(buf, "filetype", "gemi-prompt")
-	-- Set up initial prompt text
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Gemi: " })
+	-- Set up initial prompt text with cleaner indicator
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "> " })
 	return buf
 end
 
@@ -110,7 +110,7 @@ function M.update_logs()
 	local lines = {}
 
 	-- Header with spinner and elapsed time if executing
-	local header = "=== Gemi ==="
+	local header = "=== 🤖 Gemi Chat ==="
 	if M._state.is_executing then
 		local spinner = M._state.spinner_chars[M._state.spinner_index]
 		local elapsed = ""
@@ -118,7 +118,7 @@ function M.update_logs()
 			local elapsed_seconds = math.floor(vim.loop.hrtime() / 1000000000) - M._state.execution_start_time
 			elapsed = string.format(" (%ds)", elapsed_seconds)
 		end
-		header = header .. " " .. spinner .. " Executing..." .. elapsed
+		header = header .. " " .. spinner .. " ⚡ Executing..." .. elapsed
 	end
 
 	table.insert(lines, header)
@@ -129,7 +129,10 @@ function M.update_logs()
 	if conversation.is_context_enabled() then
 		local history_count = conversation.get_history_count()
 		if history_count > 0 then
-			local msg = string.format("📝 Conversation context: %d messages (press 'x' to clear, 'c' to toggle)", history_count)
+			local msg = string.format(
+				"📝 Conversation context: %d messages (press 'x' to clear, 'c' to toggle)",
+				history_count
+			)
 			table.insert(lines, msg)
 		else
 			table.insert(lines, "📝 Conversation context: enabled (press 'c' to disable)")
@@ -139,44 +142,84 @@ function M.update_logs()
 	end
 	table.insert(lines, "")
 
-	-- Show logs
+	-- Show logs with modern styling
 	for _, entry in ipairs(logs) do
 		local level_name = logger._get_level_name and logger._get_level_name(entry.level) or "INFO"
-		local line = string.format("[%s] %s: %s", entry.timestamp, level_name, entry.message)
-		table.insert(lines, line)
-		if entry.data then
-			for key, value in pairs(entry.data) do
-				local value_str
-				if type(value) == "table" then
-					value_str = vim.inspect(value)
-				else
-					value_str = tostring(value)
-				end
-				-- Special handling for gemini output
-				if key == "output" and entry.data.preserve_formatting then
-					-- For gemini output, preserve newlines and show full content
-					local output_lines = vim.split(value_str, "\n")
-					table.insert(lines, string.format("  %s:", key))
-					for _, output_line in ipairs(output_lines) do
-						table.insert(lines, "    " .. output_line)
-					end
-				else
-					-- For other data, apply truncation
-					value_str = value_str:gsub("\n", " "):gsub("\r", " ")
-					if #value_str > 150 then
-						value_str = value_str:sub(1, 150) .. "..."
-					end
-					table.insert(lines, string.format("  %s: %s", key, value_str))
+
+		-- Format different types of messages with visual indicators
+		if entry.data and entry.data.prompt then
+			-- User prompt
+			local icon = "💬"
+			local line = string.format("%s [%s] You:", icon, entry.timestamp)
+			table.insert(lines, line)
+			table.insert(lines, "  " .. entry.data.prompt)
+			table.insert(lines, "")
+		elseif entry.data and entry.data.output and entry.data.preserve_formatting then
+			-- Assistant response
+			local icon = "🤖"
+			local line = string.format("%s [%s] Assistant:", icon, entry.timestamp)
+			table.insert(lines, line)
+			-- For gemini output, preserve newlines and show full content
+			local output_lines = vim.split(entry.data.output, "\n")
+			for _, output_line in ipairs(output_lines) do
+				table.insert(lines, "  " .. output_line)
+			end
+			table.insert(lines, "")
+		elseif entry.data and entry.data.is_error then
+			-- Error message
+			local icon = "❌"
+			local line = string.format("%s [%s] Error:", icon, entry.timestamp)
+			table.insert(lines, line)
+			table.insert(lines, "  " .. entry.message)
+			if entry.data.output then
+				local error_lines = vim.split(tostring(entry.data.output), "\n")
+				for _, error_line in ipairs(error_lines) do
+					table.insert(lines, "  " .. error_line)
 				end
 			end
+			table.insert(lines, "")
+		else
+			-- Regular log message
+			local icon = level_name == "ERROR" and "❌" or level_name == "WARN" and "⚠️" or "ℹ️"
+			local line = string.format("%s [%s] %s", icon, entry.timestamp, entry.message)
+			table.insert(lines, line)
+
+			-- Handle other data
+			if entry.data then
+				for key, value in pairs(entry.data) do
+					local skip_keys = {"prompt", "output", "preserve_formatting", "is_error"}
+					local should_skip = false
+					for _, skip_key in ipairs(skip_keys) do
+						if key == skip_key then
+							should_skip = true
+							break
+						end
+					end
+					if not should_skip then
+						local value_str
+						if type(value) == "table" then
+							value_str = vim.inspect(value)
+						else
+							value_str = tostring(value)
+						end
+						-- Apply truncation
+						value_str = value_str:gsub("\n", " "):gsub("\r", " ")
+						if #value_str > 100 then
+							value_str = value_str:sub(1, 100) .. "..."
+						end
+						table.insert(lines, string.format("  %s: %s", key, value_str))
+					end
+				end
+			end
+			table.insert(lines, "")
 		end
-		table.insert(lines, "")
 	end
 	if #logs == 0 then
 		table.insert(lines, "No logs yet. Enter a prompt below to get started.")
 	end
 
-	-- Add separator before prompt
+	-- Add simple separator before prompt
+	table.insert(lines, "")
 	table.insert(lines, string.rep("─", 50))
 	table.insert(lines, "")
 
@@ -184,6 +227,8 @@ function M.update_logs()
 	vim.api.nvim_buf_set_option(M._state.main_buf, "modifiable", true)
 	vim.api.nvim_buf_set_lines(M._state.main_buf, 0, -1, false, lines)
 	vim.api.nvim_buf_set_option(M._state.main_buf, "modifiable", false)
+	-- Apply syntax highlighting
+	M._apply_syntax_highlighting(lines)
 
 	-- Add model indicator to bottom right corner
 	M.add_model_indicator()
@@ -243,7 +288,7 @@ function M.show()
 		local lines = vim.api.nvim_buf_get_lines(M._state.prompt_buf, 0, -1, false)
 		local full_text = table.concat(lines, "\n")
 		-- Remove the prompt prefix from the first line
-		local prompt_prefix = "Gemi: "
+		local prompt_prefix = "> "
 		if full_text:sub(1, #prompt_prefix) == prompt_prefix then
 			full_text = full_text:sub(#prompt_prefix + 1)
 		end
@@ -306,16 +351,16 @@ function M.show()
 
 	-- Restore saved prompt text if any
 	if M._state.saved_prompt_text ~= "" then
-		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "Gemi: " .. M._state.saved_prompt_text })
+		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "> " .. M._state.saved_prompt_text })
 		-- Move cursor to end of line
 		vim.schedule(function()
-			local line_len = #("Gemi: " .. M._state.saved_prompt_text)
+			local line_len = #("> " .. M._state.saved_prompt_text)
 			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, line_len })
 		end)
 	else
 		-- Position cursor after prompt prefix
 		vim.schedule(function()
-			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, 6 }) -- 6 = length of "Gemi: "
+			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, 2 }) -- 2 = length of "> "
 		end)
 	end
 
@@ -342,7 +387,7 @@ function M.hide()
 		if #lines > 0 then
 			-- Remove the prompt prefix and save the actual text
 			local text = lines[1] or ""
-			local prompt_prefix = "Gemi: "
+			local prompt_prefix = "> "
 			if text:sub(1, #prompt_prefix) == prompt_prefix then
 				text = text:sub(#prompt_prefix + 1)
 			end
@@ -400,7 +445,7 @@ function M._execute_prompt_internal(prompt)
 
 	-- Clear the prompt input and reset with prompt prefix
 	if M._state.prompt_buf and vim.api.nvim_buf_is_valid(M._state.prompt_buf) then
-		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "Gemi: " })
+		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "> " })
 	end
 
 	-- Update logs to show the new prompt
@@ -412,11 +457,24 @@ end
 
 -- Setup function
 function M.setup()
-	-- Define highlight groups
+	-- Define modern highlight groups with color variations
 	vim.api.nvim_set_hl(0, "GemiNormal", { link = "Normal" })
 	vim.api.nvim_set_hl(0, "GemiBorder", { link = "FloatBorder" })
 	vim.api.nvim_set_hl(0, "GemiTitle", { link = "Title" })
 	vim.api.nvim_set_hl(0, "GemiModelIndicator", { fg = "#8a8a8a", bg = "NONE", italic = true })
+
+	-- Chat message styling
+	vim.api.nvim_set_hl(0, "GemiUserPrompt", { fg = "#7aa2f7", bold = true }) -- Blue for user prompts
+	vim.api.nvim_set_hl(0, "GemiUserPromptIcon", { fg = "#7aa2f7", bold = true }) -- Blue for user icon
+	vim.api.nvim_set_hl(0, "GemiAssistantResponse", { fg = "#9ece6a", bold = true }) -- Green for assistant
+	vim.api.nvim_set_hl(0, "GemiAssistantIcon", { fg = "#9ece6a", bold = true }) -- Green for assistant icon
+	vim.api.nvim_set_hl(0, "GemiTimestamp", { fg = "#565f89", italic = true }) -- Muted for timestamps
+	vim.api.nvim_set_hl(0, "GemiContext", { fg = "#f7768e", italic = true }) -- Pink for context status
+	vim.api.nvim_set_hl(0, "GemiSeparator", { fg = "#414868" }) -- Muted for separators
+	vim.api.nvim_set_hl(0, "GemiError", { fg = "#f7768e", bold = true }) -- Red for errors
+	vim.api.nvim_set_hl(0, "GemiSuccess", { fg = "#9ece6a" }) -- Green for success
+	vim.api.nvim_set_hl(0, "GemiExecuting", { fg = "#e0af68", bold = true }) -- Yellow for executing
+	vim.api.nvim_set_hl(0, "GemiPromptIndicator", { fg = "#bb9af7", bold = true }) -- Purple for prompt indicator
 end
 
 -- Check if overlay is visible
@@ -445,6 +503,75 @@ function M.stop_execution()
 	M._state.execution_start_time = nil
 	M.stop_spinner()
 	M.update_logs()
+end
+
+-- Apply syntax highlighting to the chat buffer
+function M._apply_syntax_highlighting(lines)
+	if not M._state.main_buf or not vim.api.nvim_buf_is_valid(M._state.main_buf) then
+		return
+	end
+
+	-- Clear existing highlights
+	vim.api.nvim_buf_clear_namespace(M._state.main_buf, -1, 0, -1)
+
+	local ns_id = vim.api.nvim_create_namespace("gemi_highlight")
+
+	for i, line in ipairs(lines) do
+		local line_num = i - 1 -- 0-indexed
+
+		-- Highlight header and status
+		if line:match("^=== 🤖 Gemi Chat ===") then
+			if line:match("⚡ Executing") then
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiExecuting", line_num, 0, -1)
+			else
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiTitle", line_num, 0, -1)
+			end
+		-- Highlight conversation context
+		elseif line:match("^📝 Conversation context:") then
+			vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiContext", line_num, 0, -1)
+		-- Highlight user prompts
+		elseif line:match("^💬 %[") then
+			local timestamp_start, timestamp_end = line:find("%[%d%d:%d%d:%d%d%]")
+			if timestamp_start then
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiUserPromptIcon", line_num, 0, 2)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf, ns_id, "GemiTimestamp", line_num, timestamp_start - 1, timestamp_end)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf, ns_id, "GemiUserPrompt", line_num, timestamp_end, -1)
+			end
+		-- Highlight assistant responses
+		elseif line:match("^🤖 %[") then
+			local timestamp_start, timestamp_end = line:find("%[%d%d:%d%d:%d%d%]")
+			if timestamp_start then
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiAssistantIcon", line_num, 0, 2)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf, ns_id, "GemiTimestamp", line_num, timestamp_start - 1, timestamp_end)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf, ns_id, "GemiAssistantResponse", line_num, timestamp_end, -1)
+			end
+		-- Highlight errors
+		elseif line:match("^❌ %[") then
+			local timestamp_start, timestamp_end = line:find("%[%d%d:%d%d:%d%d%]")
+			if timestamp_start then
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiError", line_num, 0, 2)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf, ns_id, "GemiTimestamp", line_num, timestamp_start - 1, timestamp_end)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf, ns_id, "GemiError", line_num, timestamp_end, -1)
+			end
+		-- Highlight info messages
+		elseif line:match("^ℹ️ %[") then
+			local timestamp_start, timestamp_end = line:find("%[%d%d:%d%d:%d%d%]")
+			if timestamp_start then
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiSuccess", line_num, 0, 2)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf, ns_id, "GemiTimestamp", line_num, timestamp_start - 1, timestamp_end)
+			end
+		-- Highlight separators
+		elseif line:match("^─+$") then
+			vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiSeparator", line_num, 0, -1)
+		end
+	end
 end
 
 -- Add model indicator to bottom right corner

@@ -17,7 +17,7 @@ function M.add_user_message(prompt)
 	table.insert(M._state.history, {
 		role = "user",
 		content = prompt,
-		timestamp = os.date("%H:%M:%S")
+		timestamp = os.date("%H:%M:%S"),
 	})
 	-- Trim history if it gets too long
 	M._trim_history()
@@ -31,7 +31,7 @@ function M.add_assistant_response(response)
 	table.insert(M._state.history, {
 		role = "assistant",
 		content = response,
-		timestamp = os.date("%H:%M:%S")
+		timestamp = os.date("%H:%M:%S"),
 	})
 	-- Trim history if it gets too long
 	M._trim_history()
