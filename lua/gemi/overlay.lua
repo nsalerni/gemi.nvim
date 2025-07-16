@@ -299,6 +299,48 @@ function M.show()
 		end
 	end
 
+	-- Function to protect the prompt prefix
+	local function protect_prompt_prefix()
+		local lines = vim.api.nvim_buf_get_lines(M._state.prompt_buf, 0, -1, false)
+		if #lines > 0 then
+			local first_line = lines[1]
+			if not first_line:match("^> ") then
+				-- Restore the prompt prefix if it's missing
+				if first_line == "" then
+					vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, 1, false, { "> " })
+				else
+					vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, 1, false, { "> " .. first_line })
+				end
+				-- Move cursor to after the prefix
+				vim.schedule(function()
+					local cursor_pos = vim.api.nvim_win_get_cursor(M._state.prompt_win)
+					local new_col = math.max(2, cursor_pos[2])
+					vim.api.nvim_win_set_cursor(M._state.prompt_win, { cursor_pos[1], new_col })
+				end)
+			end
+		end
+	end
+
+	-- Function to handle key presses that might delete the prefix
+	local function handle_prefix_deletion(key)
+		return function()
+			local cursor_pos = vim.api.nvim_win_get_cursor(M._state.prompt_win)
+			local col = cursor_pos[2]
+			local line = cursor_pos[1]
+
+			-- Prevent deletion if cursor is at or before the prefix
+			if line == 1 and col <= 2 then
+				return -- Block the deletion
+			end
+
+			-- Allow the key if it's safe
+			vim.api.nvim_feedkeys(key, "n", false)
+
+			-- Check and restore prefix after the operation
+			vim.schedule(protect_prompt_prefix)
+		end
+	end
+
 	-- Keymaps for both windows
 	local main_opts = { buffer = M._state.main_buf, silent = true }
 	local prompt_opts = { buffer = M._state.prompt_buf, silent = true }
@@ -313,6 +355,18 @@ function M.show()
 	vim.keymap.set("i", "<CR>", execute_current_prompt, prompt_opts)
 	vim.keymap.set("i", "<S-CR>", "<CR>", prompt_opts)
 	vim.keymap.set("n", "<CR>", execute_current_prompt, prompt_opts)
+
+	-- Protect the prompt prefix from deletion
+	vim.keymap.set(
+		"i", "<BS>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<BS>", true, false, true)), prompt_opts)
+	vim.keymap.set(
+		"i", "<Del>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<Del>", true, false, true)), prompt_opts)
+	vim.keymap.set(
+		"i", "<C-h>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-h>", true, false, true)), prompt_opts)
+	vim.keymap.set(
+		"i", "<C-w>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-w>", true, false, true)), prompt_opts)
+	vim.keymap.set(
+		"i", "<C-u>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-u>", true, false, true)), prompt_opts)
 
 	-- Toggle focus
 	vim.keymap.set("n", "<Tab>", toggle_focus, main_opts)
@@ -348,6 +402,12 @@ function M.show()
 	-- Set highlight groups
 	vim.api.nvim_win_set_option(M._state.main_win, "winhighlight", "Normal:GemiNormal,FloatBorder:GemiBorder")
 	vim.api.nvim_win_set_option(M._state.prompt_win, "winhighlight", "Normal:GemiNormal,FloatBorder:GemiBorder")
+
+	-- Add buffer modification autocmd to protect the prefix
+	vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
+		buffer = M._state.prompt_buf,
+		callback = protect_prompt_prefix,
+	})
 
 	-- Restore saved prompt text if any
 	if M._state.saved_prompt_text ~= "" then
