@@ -15,22 +15,17 @@ M._state = {
 -- Create input buffer
 local function create_input_buffer()
 	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_option(buf, "buftype", "prompt")
+	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 	vim.api.nvim_buf_set_option(buf, "buflisted", false)
 	vim.api.nvim_buf_set_option(buf, "swapfile", false)
 	vim.api.nvim_buf_set_option(buf, "modifiable", true)
+	vim.api.nvim_buf_set_option(buf, "filetype", "gemi-prompt")
 
-	-- Set prompt
+	-- Set up initial prompt text
 	local prompt = config.get("ui.prompt") or "Gemi: "
-	vim.fn.prompt_setprompt(buf, prompt)
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { prompt })
 
-	-- Set up prompt callback
-	vim.fn.prompt_setcallback(buf, function(text)
-		if text and text ~= "" then
-			M.execute_prompt(text)
-		end
-	end)
 	return buf
 end
 
@@ -86,14 +81,37 @@ function M.show()
 		M.hide()
 	end
 
+	local function execute_current_prompt()
+		local lines = vim.api.nvim_buf_get_lines(M._state.input_buf, 0, -1, false)
+		local full_text = table.concat(lines, "\n")
+		-- Remove the prompt prefix from the first line
+		local prompt_prefix = config.get("ui.prompt") or "Gemi: "
+		if full_text:sub(1, #prompt_prefix) == prompt_prefix then
+			full_text = full_text:sub(#prompt_prefix + 1)
+		end
+		-- Trim whitespace
+		full_text = full_text:match("^%s*(.-)%s*$")
+		if full_text and full_text ~= "" then
+			M.execute_prompt(full_text)
+		end
+	end
+
 	local opts = { buffer = M._state.input_buf, silent = true }
 	vim.keymap.set("i", "<Esc>", close_ui, opts)
 	vim.keymap.set("n", "<Esc>", close_ui, opts)
 	vim.keymap.set("n", "q", close_ui, opts)
 	vim.keymap.set("i", "<C-c>", close_ui, opts)
+	-- Enter executes the prompt, Shift+Enter creates new line
+	vim.keymap.set("i", "<CR>", execute_current_prompt, opts)
+	vim.keymap.set("i", "<S-CR>", "<CR>", opts)
+	vim.keymap.set("n", "<CR>", execute_current_prompt, opts)
 
-	-- Enter insert mode immediately
-	vim.cmd("startinsert")
+	-- Position cursor after prompt prefix and enter insert mode
+	vim.schedule(function()
+		local prompt_prefix = config.get("ui.prompt") or "Gemi: "
+		vim.api.nvim_win_set_cursor(M._state.input_win, { 1, #prompt_prefix })
+		vim.cmd("startinsert")
+	end)
 	M._state.is_visible = true
 end
 
@@ -137,9 +155,10 @@ end
 
 -- Execute prompt
 function M.execute_prompt(prompt)
-	-- Clear the input
+	-- Clear the input and reset with prompt prefix
 	if M._state.input_buf and vim.api.nvim_buf_is_valid(M._state.input_buf) then
-		vim.api.nvim_buf_set_lines(M._state.input_buf, 0, -1, false, {})
+		local prompt_prefix = config.get("ui.prompt") or "Gemi: "
+		vim.api.nvim_buf_set_lines(M._state.input_buf, 0, -1, false, { prompt_prefix })
 	end
 
 	-- Update status

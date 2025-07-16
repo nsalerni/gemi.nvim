@@ -38,19 +38,14 @@ end
 -- Create the prompt buffer
 local function create_prompt_buffer()
 	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_option(buf, "buftype", "prompt")
+	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 	vim.api.nvim_buf_set_option(buf, "buflisted", false)
 	vim.api.nvim_buf_set_option(buf, "swapfile", false)
 	vim.api.nvim_buf_set_option(buf, "modifiable", true)
-	-- Set prompt
-	vim.fn.prompt_setprompt(buf, "Gemi: ")
-	-- Set up prompt callback
-	vim.fn.prompt_setcallback(buf, function(text)
-		if text and text ~= "" then
-			M.execute_prompt(text)
-		end
-	end)
+	vim.api.nvim_buf_set_option(buf, "filetype", "gemi-prompt")
+	-- Set up initial prompt text
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Gemi: " })
 	return buf
 end
 
@@ -223,6 +218,21 @@ function M.show()
 		end
 	end
 
+	local function execute_current_prompt()
+		local lines = vim.api.nvim_buf_get_lines(M._state.prompt_buf, 0, -1, false)
+		local full_text = table.concat(lines, "\n")
+		-- Remove the prompt prefix from the first line
+		local prompt_prefix = "Gemi: "
+		if full_text:sub(1, #prompt_prefix) == prompt_prefix then
+			full_text = full_text:sub(#prompt_prefix + 1)
+		end
+		-- Trim whitespace
+		full_text = full_text:match("^%s*(.-)%s*$")
+		if full_text and full_text ~= "" then
+			M.execute_prompt(full_text)
+		end
+	end
+
 	-- Keymaps for both windows
 	local main_opts = { buffer = M._state.main_buf, silent = true }
 	local prompt_opts = { buffer = M._state.prompt_buf, silent = true }
@@ -233,6 +243,10 @@ function M.show()
 	vim.keymap.set("i", "<Esc>", close_overlay, prompt_opts)
 	vim.keymap.set("n", "<Esc>", close_overlay, prompt_opts)
 	vim.keymap.set("i", "<C-c>", close_overlay, prompt_opts)
+	-- Enter executes the prompt, Shift+Enter creates new line
+	vim.keymap.set("i", "<CR>", execute_current_prompt, prompt_opts)
+	vim.keymap.set("i", "<S-CR>", "<CR>", prompt_opts)
+	vim.keymap.set("n", "<CR>", execute_current_prompt, prompt_opts)
 
 	-- Toggle focus
 	vim.keymap.set("n", "<Tab>", toggle_focus, main_opts)
@@ -258,11 +272,16 @@ function M.show()
 
 	-- Restore saved prompt text if any
 	if M._state.saved_prompt_text ~= "" then
-		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { M._state.saved_prompt_text })
+		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "Gemi: " .. M._state.saved_prompt_text })
 		-- Move cursor to end of line
 		vim.schedule(function()
-			local line_len = #M._state.saved_prompt_text
+			local line_len = #("Gemi: " .. M._state.saved_prompt_text)
 			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, line_len })
+		end)
+	else
+		-- Position cursor after prompt prefix
+		vim.schedule(function()
+			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, 6 }) -- 6 = length of "Gemi: "
 		end)
 	end
 
@@ -289,6 +308,10 @@ function M.hide()
 		if #lines > 0 then
 			-- Remove the prompt prefix and save the actual text
 			local text = lines[1] or ""
+			local prompt_prefix = "Gemi: "
+			if text:sub(1, #prompt_prefix) == prompt_prefix then
+				text = text:sub(#prompt_prefix + 1)
+			end
 			M._state.saved_prompt_text = text
 		end
 	end
@@ -341,9 +364,9 @@ function M._execute_prompt_internal(prompt)
 	-- Immediately log the prompt so user sees it
 	logger.info("User prompt", { prompt = prompt })
 
-	-- Clear the prompt input
+	-- Clear the prompt input and reset with prompt prefix
 	if M._state.prompt_buf and vim.api.nvim_buf_is_valid(M._state.prompt_buf) then
-		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, {})
+		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "Gemi: " })
 	end
 
 	-- Update logs to show the new prompt

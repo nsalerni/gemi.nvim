@@ -31,40 +31,44 @@ function M.run_gemini_system(prompt, callback)
 	end
 	logger.debug("Starting gemini execution", { prompt = prompt })
 
-	-- Build command
-	local cmd = "gemini --prompt " .. vim.fn.shellescape(prompt)
+	-- Build command as array (better for multi-line prompts)
+	local cmd = { "gemini", "--prompt", prompt }
 	local model = config.get("gemini.model")
 	if model then
-		cmd = cmd .. " --model " .. model
+		table.insert(cmd, "--model")
+		table.insert(cmd, model)
 	end
 	local debug = config.get("gemini.debug")
 	if debug then
-		cmd = cmd .. " --debug"
+		table.insert(cmd, "--debug")
 	end
 	local all_files = config.get("gemini.all_files")
 	if all_files then
-		cmd = cmd .. " --all_files"
+		table.insert(cmd, "--all_files")
 	end
 	local yolo = config.get("gemini.yolo")
 	if yolo then
-		cmd = cmd .. " --yolo"
+		table.insert(cmd, "--yolo")
 	end
 	local checkpointing = config.get("gemini.checkpointing")
 	if checkpointing then
-		cmd = cmd .. " --checkpointing"
+		table.insert(cmd, "--checkpointing")
 	end
-	logger.debug("Executing command", { cmd = cmd })
+	logger.debug("Executing command", { cmd = table.concat(cmd, " ") })
 
 	-- Start execution state
 	local overlay = require("gemi.overlay")
 	overlay.start_execution()
-	if has_asyncrun() then
-		-- Use asyncrun.vim for non-blocking execution
+	-- Check if prompt has newlines - if so, skip asyncrun and use jobstart
+	local has_newlines = prompt:find("\n") ~= nil
+	if has_asyncrun() and not has_newlines then
+		-- Use asyncrun.vim for non-blocking execution (single-line prompts only)
 		logger.debug("Using asyncrun.vim for non-blocking execution")
 
 		-- Create temporary output file
-		local temp_file = vim.fn.tempname()
-		local cmd_with_output = cmd .. " > " .. vim.fn.shellescape(temp_file) .. " 2>&1"
+		local temp_output_file = vim.fn.tempname()
+		local cmd_str = table.concat(vim.tbl_map(vim.fn.shellescape, cmd), " ")
+		local cmd_with_output = cmd_str .. " > " .. vim.fn.shellescape(temp_output_file) .. " 2>&1"
 
 		-- Set up asyncrun autocmd to handle completion
 		local group = vim.api.nvim_create_augroup("gemi_asyncrun", { clear = true })
@@ -81,12 +85,12 @@ function M.run_gemini_system(prompt, callback)
 					local output = ""
 
 					-- Read output from temporary file
-					local file = io.open(temp_file, "r")
+					local file = io.open(temp_output_file, "r")
 					if file then
 						output = file:read("*all") or ""
 						file:close()
 						-- Clean up temp file
-						os.remove(temp_file)
+						os.remove(temp_output_file)
 					else
 						-- Fallback: Get output from asyncrun quickfix buffer
 						local qf_list = vim.fn.getqflist()
@@ -111,7 +115,7 @@ function M.run_gemini_system(prompt, callback)
 					else
 						logger.error("Command failed", {
 							exit_code = exit_code,
-							command = cmd,
+							command = table.concat(cmd, " "),
 						})
 
 						-- Log the full output separately to preserve formatting
@@ -141,7 +145,7 @@ function M.run_gemini_system(prompt, callback)
 
 		-- Run the command with asyncrun and redirect output to temp file
 		vim.cmd("AsyncRun " .. cmd_with_output)
-		logger.debug("Job started (asyncrun mode)", { temp_file = temp_file })
+		logger.debug("Job started (asyncrun mode)", { temp_output_file = temp_output_file })
 		return {
 			job_id = "asyncrun",
 			shutdown = function()
@@ -150,12 +154,16 @@ function M.run_gemini_system(prompt, callback)
 				overlay.stop_execution()
 				overlay.auto_refresh()
 				-- Clean up temp file on shutdown
-				pcall(os.remove, temp_file)
+				pcall(os.remove, temp_output_file)
 			end,
 		}
 	else
 		-- Fallback to jobstart for non-blocking execution
-		logger.debug("asyncrun.vim not found, using jobstart fallback")
+		if has_newlines then
+			logger.debug("Using jobstart for multi-line prompt")
+		else
+			logger.debug("asyncrun.vim not found, using jobstart fallback")
+		end
 		local output_lines = {}
 		local error_lines = {}
 		local job = vim.fn.jobstart(cmd, {
@@ -194,7 +202,7 @@ function M.run_gemini_system(prompt, callback)
 						local error_msg = errors ~= "" and errors or "Command failed with exit code " .. exit_code
 						logger.error("Command failed", {
 							exit_code = exit_code,
-							command = cmd,
+							command = table.concat(cmd, " "),
 						})
 						-- Log the full output separately to preserve formatting
 						if error_msg and error_msg ~= "" then
