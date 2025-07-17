@@ -358,15 +358,35 @@ function M.show()
 
 	-- Protect the prompt prefix from deletion
 	vim.keymap.set(
-		"i", "<BS>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<BS>", true, false, true)), prompt_opts)
+		"i",
+		"<BS>",
+		handle_prefix_deletion(vim.api.nvim_replace_termcodes("<BS>", true, false, true)),
+		prompt_opts
+	)
 	vim.keymap.set(
-		"i", "<Del>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<Del>", true, false, true)), prompt_opts)
+		"i",
+		"<Del>",
+		handle_prefix_deletion(vim.api.nvim_replace_termcodes("<Del>", true, false, true)),
+		prompt_opts
+	)
 	vim.keymap.set(
-		"i", "<C-h>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-h>", true, false, true)), prompt_opts)
+		"i",
+		"<C-h>",
+		handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-h>", true, false, true)),
+		prompt_opts
+	)
 	vim.keymap.set(
-		"i", "<C-w>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-w>", true, false, true)), prompt_opts)
+		"i",
+		"<C-w>",
+		handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-w>", true, false, true)),
+		prompt_opts
+	)
 	vim.keymap.set(
-		"i", "<C-u>", handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-u>", true, false, true)), prompt_opts)
+		"i",
+		"<C-u>",
+		handle_prefix_deletion(vim.api.nvim_replace_termcodes("<C-u>", true, false, true)),
+		prompt_opts
+	)
 
 	-- Toggle focus
 	vim.keymap.set("n", "<Tab>", toggle_focus, main_opts)
@@ -404,7 +424,7 @@ function M.show()
 	vim.api.nvim_win_set_option(M._state.prompt_win, "winhighlight", "Normal:GemiNormal,FloatBorder:GemiBorder")
 
 	-- Add buffer modification autocmd to protect the prefix
-	vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
 		buffer = M._state.prompt_buf,
 		callback = protect_prompt_prefix,
 	})
