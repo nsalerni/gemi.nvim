@@ -1,7 +1,7 @@
 # Makefile for gemi.nvim
 # Lua project build, lint, and format automation
 
-.PHONY: help build lint format fix test check install-tools clean all version release
+.PHONY: help build lint format fix test check install-tools clean all version release bun-help
 
 # Default target
 help:
@@ -22,12 +22,22 @@ help:
 	@echo "  release      - Create release package"
 	@echo "  all          - Run full pipeline: lint, format, build"
 	@echo ""
+	@echo "Bun.js commands (faster runtime):"
+	@echo "  bun-dev      - Development mode with file watching"
+	@echo "  bun-build    - Build using bun runtime"
+	@echo "  bun-lint     - Lint using bun runtime"
+	@echo "  bun-format   - Format using bun runtime"
+	@echo "  bun-check    - Check using bun runtime"
+	@echo "  bun-test     - Test using bun runtime"
+	@echo "  bun-install  - Install tools using bun"
+	@echo ""
 	@echo "Tools required:"
 	@echo "  - luacheck: Lua linter"
 	@echo "  - stylua: Lua formatter" 
 	@echo "  - luarocks: Lua package manager (optional)"
+	@echo "  - bun: Fast JavaScript runtime (optional, for better performance)"
 	@echo ""
-	@echo "Install tools with: make install-tools"
+	@echo "Install tools with: make install-tools or make bun-install"
 
 # Install development tools
 install-tools:
@@ -173,3 +183,70 @@ release:
 		--exclude='.github' \
 		.; \
 	echo "Release package created: dist/gemi.nvim-$$VERSION.tar.gz"
+
+# Bun.js powered commands for faster development
+bun-dev:
+	@if command -v bun >/dev/null 2>&1; then \
+		bun run dev; \
+	else \
+		echo "Bun not found. Install from: https://bun.sh"; \
+		exit 1; \
+	fi
+
+bun-build:
+	@if command -v bun >/dev/null 2>&1; then \
+		bun run build; \
+	else \
+		echo "Bun not found. Install from: https://bun.sh"; \
+		exit 1; \
+	fi
+
+bun-lint:
+	@if command -v bun >/dev/null 2>&1; then \
+		bun run lint; \
+	else \
+		echo "Bun not found. Install from: https://bun.sh"; \
+		exit 1; \
+	fi
+
+bun-format:
+	@if command -v bun >/dev/null 2>&1; then \
+		bun run format; \
+	else \
+		echo "Bun not found. Install from: https://bun.sh"; \
+		exit 1; \
+	fi
+
+bun-check:
+	@if command -v bun >/dev/null 2>&1; then \
+		bun run check; \
+	else \
+		echo "Bun not found. Install from: https://bun.sh"; \
+		exit 1; \
+	fi
+
+bun-test:
+	@if command -v bun >/dev/null 2>&1; then \
+		bun run test; \
+	else \
+		echo "Bun not found. Install from: https://bun.sh"; \
+		exit 1; \
+	fi
+
+bun-install:
+	@if command -v bun >/dev/null 2>&1; then \
+		echo "Installing dependencies with bun..."; \
+		bun install; \
+		bun run install-tools; \
+	else \
+		echo "Bun not found. Install from: https://bun.sh"; \
+		exit 1; \
+	fi
+
+bun-clean:
+	@if command -v bun >/dev/null 2>&1; then \
+		bun run clean; \
+	else \
+		echo "Bun not found. Install from: https://bun.sh"; \
+		exit 1; \
+	fi

@@ -1,0 +1,51 @@
+{
+  "name": "gemi.nvim",
+  "version": "0.1.0",
+  "description": "AI-powered Neovim plugin for enhanced development workflow",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run build --watch",
+    "build": "bun run lint && bun run format:check && bun run build:lua",
+    "build:lua": "lua -e \"print('Checking Lua syntax...')\" && find lua -name '*.lua' -exec luac -p {} \\; && find plugin -name '*.lua' -exec luac -p {} \\;",
+    "lint": "bun run lint:lua",
+    "lint:lua": "luacheck lua/ plugin/ --config .luacheckrc",
+    "format": "stylua lua/ plugin/ --config-path stylua.toml",
+    "format:check": "stylua --check lua/ plugin/ --config-path stylua.toml",
+    "fix": "bun run format && bun run lint",
+    "check": "bun run lint && bun run format:check",
+    "test": "bun test",
+    "clean": "rm -f doc/tags && find . -name '*.tmp' -delete && find . -name '*.bak' -delete",
+    "install-tools": "bun run install:luacheck && bun run install:stylua",
+    "install:luacheck": "if command -v luarocks >/dev/null 2>&1; then luarocks install luacheck; else echo 'Installing luacheck via package manager...'; fi",
+    "install:stylua": "if command -v cargo >/dev/null 2>&1; then cargo install stylua; elif command -v brew >/dev/null 2>&1; then brew install stylua; else echo 'Please install stylua manually'; fi",
+    "release": "bun run build && bun run package",
+    "package": "VERSION=$(cat VERSION) && mkdir -p dist && tar -czf dist/gemi.nvim-$VERSION.tar.gz --exclude='.git*' --exclude='dist' --exclude='node_modules' --exclude='*.log' --exclude='test-*.lua' --exclude='.DS_Store' --exclude='Makefile' --exclude='.github' .",
+    "help": "echo 'Available scripts: dev, build, lint, format, check, test, clean, install-tools, release'"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nilptr/gemi.nvim.git"
+  },
+  "keywords": [
+    "neovim",
+    "nvim",
+    "plugin",
+    "ai",
+    "lua"
+  ],
+  "author": "nilptr",
+  "license": "MIT",
+  "files": [
+    "lua/",
+    "plugin/",
+    "doc/",
+    "README.md",
+    "LICENSE"
+  ]
+}

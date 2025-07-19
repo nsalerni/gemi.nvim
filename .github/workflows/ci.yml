@@ -51,6 +51,48 @@ jobs:
         path: dist/
         retention-days: 30
 
+  test-bun:
+    runs-on: ubuntu-latest
+    name: Test with Bun Runtime
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Setup Lua 5.1
+      uses: leafo/gh-actions-lua@v10
+      with:
+        luaVersion: "5.1"
+    
+    - name: Setup Luarocks
+      uses: leafo/gh-actions-luarocks@v4
+    
+    - name: Install dependencies with Bun
+      run: bun install
+    
+    - name: Install tools with Bun
+      run: bun run install-tools
+    
+    - name: Run linting and formatting check with Bun
+      run: bun run check
+    
+    - name: Run build with Bun
+      run: bun run build
+    
+    - name: Create release build with Bun
+      run: bun run release
+    
+    - name: Upload bun release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: gemi-nvim-bun-release
+        path: dist/
+        retention-days: 30
+
   luajit-syntax-check:
     runs-on: ubuntu-latest
     name: LuaJIT Syntax Check
