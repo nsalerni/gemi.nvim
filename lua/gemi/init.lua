@@ -41,6 +41,24 @@ function M.setup(opts)
 	overlay.setup()
 	local tracker = get_tracker()
 	tracker.setup()
+
+	-- Set up user-configurable keymaps and disable defaults
+	local keymaps = config.get("keymaps")
+	vim.g.gemi_user_setup = true -- Flag to indicate user called setup()
+
+	if keymaps.toggle then
+		vim.keymap.set("n", keymaps.toggle, M.toggle, { desc = "Toggle Gemi overlay" })
+	end
+	if keymaps.files then
+		vim.keymap.set("n", keymaps.files, M.show_changed_files, { desc = "Show Gemi changed files" })
+	end
+	if keymaps.diff then
+		vim.keymap.set("n", keymaps.diff, M.show_diff, { desc = "Show Gemi diff" })
+	end
+	if keymaps.stop then
+		vim.keymap.set("n", keymaps.stop, M.stop, { desc = "Stop Gemi execution" })
+	end
+
 	-- Create user commands
 	vim.api.nvim_create_user_command("Gemi", M.show, {})
 	vim.api.nvim_create_user_command("GemiToggle", M.toggle, {})

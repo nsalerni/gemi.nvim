@@ -14,10 +14,10 @@ M.defaults = {
 	},
 	-- Keymaps
 	keymaps = {
-		toggle = "<leader>g",
-		files = "<leader>gf",
-		diff = "<leader>gd",
-		stop = "<leader>gs",
+		toggle = "<leader>i",
+		files = "<leader>if",
+		diff = "<leader>id",
+		stop = "<leader>is",
 	},
 	-- gemini-cli settings
 	gemini = {
