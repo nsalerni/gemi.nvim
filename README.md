@@ -95,13 +95,22 @@ Gemi.nvim follows semantic versioning. You can:
 
 | Command | Description |
 |---------|-------------|
-| `:GemiToggle` | Toggle the Gemi prompt interface |
+| `:Gemi` | Open the Gemi overlay |
+| `:GemiToggle` | Toggle the Gemi overlay |
+| `:GemiStop` | Stop the current Gemini execution |
 | `:GemiInstall` | Install gemini-cli and check dependencies |
 | `:GemiFiles` | Show files changed by Gemi |
-| `:GemiDiff` | Show diff view of changes |
+| `:GemiDiff [file]` | Show diff view of changes (optional file path) |
 | `:GemiReload` | Force reload all files changed by Gemi |
+| `:GemiLogs` | Show execution logs in a floating window |
+| `:GemiClearLogs` | Clear stored execution logs |
+| `:GemiDebug` | Debug file change detection state |
 | `:GemiModel [model]` | Switch Gemini model (interactive menu or specify model) |
 | `:GemiCurrentModel` | Show current Gemini model |
+| `:GemiClearConversation` | Clear conversation history |
+| `:GemiToggleContext` | Toggle conversation context in prompts |
+
+Legacy aliases `:GemiShowChangedFiles` and `:GemiShowDiff` are also available.
 
 ## Default Keybindings
 
@@ -116,18 +125,38 @@ Gemi.nvim follows semantic versioning. You can:
 | `<leader>gr` | `:GemiReload` | Force reload changed files |
 | `<leader>gm` | `:GemiModel` | Switch Gemini model |
 
+### Overlay Keybindings
+
+When the overlay is open:
+
+| Key | Description |
+|-----|-------------|
+| `Enter` | Execute the current prompt |
+| `Shift+Enter` | Insert a newline in the prompt |
+| `Tab` / `Ctrl-Tab` | Toggle focus between logs and prompt |
+| `Ctrl-g` | Toggle the overlay |
+| `r` | Refresh the logs panel |
+| `c` | Toggle conversation context |
+| `x` | Clear conversation history |
+| `Esc` / `q` | Close the overlay (execution continues in background) |
+
 ## Configuration
 
 ```lua
 require('gemi').setup({
   -- UI settings
   ui = {
-    width = 0.8,        -- 80% of screen width
-    height = 1,         -- Single line input
-    position = 'bottom', -- 'bottom', 'top', or 'center'
-    border = 'rounded', -- Border style
-    title = ' Gemi ',   -- Window title
-    prompt = 'Gemi: ',  -- Input prompt
+    width = 0.8,         -- Overlay width as a fraction of screen width
+    height = 0.8,        -- Overlay height as a fraction of screen height
+    position = 'center', -- 'center', 'bottom', or 'top'
+    border = 'rounded',  -- Border style
+    title = ' Gemi ',    -- Window title
+    prompt = '> ',       -- Prompt prefix shown in the overlay input
+  },
+
+  -- Conversation context
+  conversation = {
+    max_history_length = 20, -- Maximum messages kept in context
   },
 
   -- Keymaps (set to false to disable)
@@ -155,7 +184,8 @@ require('gemi').setup({
   tracking = {
     auto_scan = true,        -- Automatically track file changes
     max_files = 2000,        -- Cap project file scans
-    max_file_size = 1024 * 1024, -- Skip large file contents in snapshots
+    max_file_size = 1024 * 1024, -- Skip large file contents in diffs
+    store_snapshot_content = false, -- Store metadata-only snapshots by default
     exclude_patterns = {     -- Files/patterns to ignore
       '%.git/',
       'node_modules/',
