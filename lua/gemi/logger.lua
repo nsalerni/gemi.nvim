@@ -5,6 +5,7 @@ local M = {}
 -- Log storage
 M._logs = {}
 M._current_session = os.date("%Y-%m-%d_%H-%M-%S")
+M._refresh_scheduled = false
 
 -- Log levels
 M.LEVELS = {
@@ -40,13 +41,25 @@ function M.log(level, message, data)
 	}
 	table.insert(M._logs, log_entry)
 
-	-- Auto-refresh overlay if visible
-	vim.schedule(function()
-		local ok, overlay = pcall(require, "gemi.overlay")
-		if ok then
-			overlay.auto_refresh()
+	local ok, config = pcall(require, "gemi.config")
+	local max_entries = ok and config.get("logging.max_entries") or nil
+	if max_entries and max_entries > 0 then
+		while #M._logs > max_entries do
+			table.remove(M._logs, 1)
 		end
-	end)
+	end
+
+	-- Auto-refresh overlay if visible
+	if not M._refresh_scheduled then
+		M._refresh_scheduled = true
+		vim.schedule(function()
+			M._refresh_scheduled = false
+			local overlay_ok, overlay = pcall(require, "gemi.overlay")
+			if overlay_ok then
+				overlay.auto_refresh()
+			end
+		end)
+	end
 
 	-- Also print to neovim if it's important
 	if level >= M.LEVELS.WARN then
