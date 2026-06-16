@@ -758,18 +758,12 @@ function M.add_model_indicator()
 	local model_col = math.max(0, width - #model_text - 1)
 	local model_row = height - 1
 
-	-- Calculate absolute position
-	local main_win_row = win_config.row or 0
-	local main_win_col = win_config.col or 0
-	local absolute_row = main_win_row + model_row
-	local absolute_col = main_win_col + model_col
-
 	if
 		M._state.model_indicator_win
 		and vim.api.nvim_win_is_valid(M._state.model_indicator_win)
 		and M._state.model_indicator_text == model_text
-		and M._state.model_indicator_row == absolute_row
-		and M._state.model_indicator_col == absolute_col
+		and M._state.model_indicator_row == model_row
+		and M._state.model_indicator_col == model_col
 	then
 		return
 	end
@@ -786,34 +780,28 @@ function M.add_model_indicator()
 	vim.api.nvim_buf_set_lines(M._state.model_indicator_buf, 0, -1, false, { model_text })
 	vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "modifiable", false)
 
+	local indicator_config = {
+		relative = "win",
+		win = M._state.main_win,
+		width = #model_text,
+		height = 1,
+		row = model_row,
+		col = model_col,
+		style = "minimal",
+		focusable = false,
+		zindex = 1000,
+	}
+
 	if M._state.model_indicator_win and vim.api.nvim_win_is_valid(M._state.model_indicator_win) then
-		vim.api.nvim_win_set_config(M._state.model_indicator_win, {
-			relative = "editor",
-			width = #model_text,
-			height = 1,
-			row = absolute_row,
-			col = absolute_col,
-			style = "minimal",
-			focusable = false,
-			zindex = 1000,
-		})
+		vim.api.nvim_win_set_config(M._state.model_indicator_win, indicator_config)
 	else
-		M._state.model_indicator_win = vim.api.nvim_open_win(M._state.model_indicator_buf, false, {
-			relative = "editor",
-			width = #model_text,
-			height = 1,
-			row = absolute_row,
-			col = absolute_col,
-			style = "minimal",
-			focusable = false,
-			zindex = 1000,
-		})
+		M._state.model_indicator_win = vim.api.nvim_open_win(M._state.model_indicator_buf, false, indicator_config)
 		vim.api.nvim_win_set_option(M._state.model_indicator_win, "winhighlight", "Normal:GemiModelIndicator")
 	end
 
 	M._state.model_indicator_text = model_text
-	M._state.model_indicator_row = absolute_row
-	M._state.model_indicator_col = absolute_col
+	M._state.model_indicator_row = model_row
+	M._state.model_indicator_col = model_col
 end
 
 -- Pre-initialize
