@@ -138,6 +138,39 @@ test("execute_prompt builds context before adding current user message", functio
 	assert_eq(count_occurrences(captured_prompts[2], "User: second task"), 0, "current prompt should not be duplicated")
 end)
 
+test("snapshot stores metadata by default without reading file content", function()
+	reset_gemi_modules()
+
+	local config = require("gemi.config")
+	config.setup({ tracking = { auto_scan = false, store_snapshot_content = false } })
+	local tracker = require("gemi.tracker")
+
+	local tmpdir = vim.fn.tempname()
+	vim.fn.mkdir(tmpdir, "p")
+	local test_file = tmpdir .. "/tracked.txt"
+	vim.fn.writefile({ "snapshot content" }, test_file)
+
+	local old_cwd = vim.fn.getcwd()
+	vim.cmd("cd " .. vim.fn.fnameescape(tmpdir))
+
+	local snapshot = tracker.create_snapshot("test")
+	local stored = nil
+	for path, state in pairs(snapshot.files) do
+		if path:find("tracked.txt", 1, true) then
+			stored = state
+			break
+		end
+	end
+
+	assert_truthy(stored, "snapshot should include tracked file")
+	assert_eq(stored.content, nil, "metadata-only snapshot should not store file content")
+	assert_truthy(stored.mtime ~= nil)
+	assert_truthy(stored.size > 0)
+
+	vim.cmd("cd " .. vim.fn.fnameescape(old_cwd))
+	vim.fn.delete(tmpdir, "rf")
+end)
+
 test("tracker picks latest snapshot by sequence", function()
 	reset_gemi_modules()
 

@@ -62,9 +62,10 @@ function M.create_snapshot(name)
 	}
 
 	-- Get all files in the project (excluding patterns)
+	local include_content = config.get("tracking.store_snapshot_content") == true
 	local files = M._get_project_files()
 	for _, file in ipairs(files) do
-		local file_state = M._get_file_state(file)
+		local file_state = M._get_file_state(file, { include_content = include_content })
 		if file_state then
 			snapshot.files[file] = file_state
 		end
@@ -90,10 +91,33 @@ function M._get_project_files()
 		end
 	end
 
-	-- If no git files found, fall back to recursive find
+	-- If no git files found, fall back to recursive find with excludes
 	if #files == 0 then
 		logger.debug("No git files found, using find fallback")
-		local find_files = vim.fn.systemlist({ "find", ".", "-type", "f" })
+		local find_cmd = { "find", ".", "(" }
+		local exclude_patterns = config.get("tracking.exclude_patterns") or {}
+		for i, pattern in ipairs(exclude_patterns) do
+			if i > 1 then
+				table.insert(find_cmd, "-o")
+			end
+			local path_pattern = pattern:gsub("%%", ""):gsub("%$", "")
+			if path_pattern:sub(1, 1) ~= "/" then
+				path_pattern = "./" .. path_pattern
+			end
+			if path_pattern:sub(-1) == "/" then
+				path_pattern = path_pattern .. "*"
+			end
+			table.insert(find_cmd, "-path")
+			table.insert(find_cmd, path_pattern)
+		end
+		table.insert(find_cmd, ")")
+		table.insert(find_cmd, "-prune")
+		table.insert(find_cmd, "-o")
+		table.insert(find_cmd, "-type")
+		table.insert(find_cmd, "f")
+		table.insert(find_cmd, "-print")
+
+		local find_files = vim.fn.systemlist(find_cmd)
 		for _, line in ipairs(find_files) do
 			if add_project_file(files, seen, line, max_files) then
 				break
@@ -133,21 +157,50 @@ function M._read_file_safe(file)
 	return nil
 end
 
-function M._get_file_state(file)
+function M._get_file_metadata(file)
 	local size = vim.fn.getfsize(file)
 	if size < 0 then
 		return nil
 	end
 
-	local max_file_size = config.get("tracking.max_file_size") or (1024 * 1024)
-	local file_state = {
+	return {
 		mtime = vim.fn.getftime(file),
 		size = size,
+	}
+end
+
+function M._get_snapshot_content(file, snapshot_data)
+	if snapshot_data and snapshot_data.content then
+		return snapshot_data.content
+	end
+
+	if vim.fn.isdirectory(".git") == 1 then
+		local lines = vim.fn.systemlist({ "git", "show", "HEAD:" .. file })
+		if vim.v.shell_error == 0 then
+			return table.concat(lines, "\n")
+		end
+	end
+
+	return ""
+end
+
+function M._get_file_state(file, opts)
+	opts = opts or {}
+	local metadata = M._get_file_metadata(file)
+	if not metadata then
+		return nil
+	end
+
+	local max_file_size = config.get("tracking.max_file_size") or (1024 * 1024)
+	local include_content = opts.include_content ~= false
+	local file_state = {
+		mtime = metadata.mtime,
+		size = metadata.size,
 		content = nil,
-		skipped_content = size > max_file_size,
+		skipped_content = metadata.size > max_file_size,
 	}
 
-	if not file_state.skipped_content then
+	if include_content and not file_state.skipped_content then
 		file_state.content = M._read_file_safe(file)
 	end
 
@@ -194,11 +247,11 @@ function M.scan_for_changes()
 	-- Check for modified and new files
 	for _, file in ipairs(current_files) do
 		current_file_set[file] = true
-		local current_state = M._get_file_state(file)
+		local current_metadata = M._get_file_metadata(file)
 		local snapshot_data = latest_snapshot.files[file]
-		if current_state then
+		if current_metadata then
 			if not snapshot_data then
-				-- New file
+				local current_state = M._get_file_state(file, { include_content = true })
 				logger.debug("New file detected", { file = file })
 				table.insert(changed_files, {
 					file = file,
@@ -206,13 +259,14 @@ function M.scan_for_changes()
 					old_content = "",
 					new_content = diff_content(current_state.content, current_state),
 				})
-			elseif file_changed(snapshot_data, current_state) then
-				-- Modified file
+			elseif file_changed(snapshot_data, current_metadata) then
+				local current_state = M._get_file_state(file, { include_content = true })
+				local old_content = M._get_snapshot_content(file, snapshot_data)
 				logger.debug("Modified file detected", { file = file })
 				table.insert(changed_files, {
 					file = file,
 					type = "modified",
-					old_content = diff_content(snapshot_data.content, snapshot_data),
+					old_content = diff_content(old_content, snapshot_data),
 					new_content = diff_content(current_state.content, current_state),
 				})
 			end
@@ -220,13 +274,14 @@ function M.scan_for_changes()
 	end
 
 	-- Check for deleted files
-	for file, _ in pairs(latest_snapshot.files) do
+	for file, snapshot_data in pairs(latest_snapshot.files) do
 		if not current_file_set[file] and vim.fn.filereadable(file) == 0 then
+			local old_content = M._get_snapshot_content(file, snapshot_data)
 			logger.debug("Deleted file detected", { file = file })
 			table.insert(changed_files, {
 				file = file,
 				type = "deleted",
-				old_content = diff_content(latest_snapshot.files[file].content, latest_snapshot.files[file]),
+				old_content = diff_content(old_content, snapshot_data),
 				new_content = "",
 			})
 		end
