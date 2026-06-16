@@ -34,6 +34,8 @@ M.defaults = {
 	-- File tracking
 	tracking = {
 		auto_scan = true,
+		max_files = 2000,
+		max_file_size = 1024 * 1024,
 		exclude_patterns = {
 			"%.git/",
 			"node_modules/",
