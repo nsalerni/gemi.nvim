@@ -155,11 +155,11 @@ function M.execute_prompt(prompt)
 	local tracker = get_tracker()
 	local conversation = require("gemi.conversation")
 
-	-- Add user message to conversation history
-	conversation.add_user_message(prompt)
-
 	-- Build context prompt that includes conversation history
 	local context_prompt = conversation.build_context_prompt(prompt)
+
+	-- Add user message to conversation history after context is built.
+	conversation.add_user_message(prompt)
 
 	-- Create a snapshot before execution to capture the baseline
 	tracker.create_snapshot("pre_execution")
@@ -176,7 +176,7 @@ function M.execute_prompt(prompt)
 		else
 			-- Check if this is a rate limit error and we should try fallback
 			if M.is_rate_limit_error(output) and not M._state.using_fallback then
-				M.handle_rate_limit_error(prompt, output)
+				M.handle_rate_limit_error(context_prompt, output)
 			else
 				vim.notify("Gemi failed: " .. (output or "Unknown error"), vim.log.levels.ERROR)
 			end
@@ -214,6 +214,8 @@ function M.handle_rate_limit_error(prompt, error_output)
 		M._state.current_job = nil
 		M._state.using_fallback = false
 		if success then
+			local conversation = require("gemi.conversation")
+			conversation.add_assistant_response(output)
 			-- Scan for changes after execution
 			tracker.scan_for_changes()
 			logger.info("Fallback model succeeded", { fallback_model = fallback_model })
@@ -347,10 +349,10 @@ function M.is_rate_limit_error(error_output)
 		return false
 	end
 	local error_str = tostring(error_output):lower()
-	return error_str:find("429")
-		or error_str:find("rate limit")
-		or error_str:find("quota")
-		or error_str:find("too many requests")
+	return error_str:find("429", 1, true) ~= nil
+		or error_str:find("rate limit", 1, true) ~= nil
+		or error_str:find("quota", 1, true) ~= nil
+		or error_str:find("too many requests", 1, true) ~= nil
 end
 
 -- Conversation management functions
