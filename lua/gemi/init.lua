@@ -83,6 +83,22 @@ function M.setup(opts)
 		tracker.setup()
 	end
 	setup_keymaps()
+
+	local max_history = config.get("conversation.max_history_length")
+	if max_history then
+		require("gemi.conversation").set_max_history_length(max_history)
+	end
+
+	if config.get("install.auto_install") then
+		vim.defer_fn(function()
+			local installer = get_installer()
+			local ready = installer.check_all_dependencies()
+			if not ready then
+				installer.install_dependencies()
+			end
+		end, 100)
+	end
+
 	M._state.initialized = true
 end
 
