@@ -138,6 +138,39 @@ test("execute_prompt builds context before adding current user message", functio
 	assert_eq(count_occurrences(captured_prompts[2], "User: second task"), 0, "current prompt should not be duplicated")
 end)
 
+test("snapshot stores metadata by default without reading file content", function()
+	reset_gemi_modules()
+
+	local config = require("gemi.config")
+	config.setup({ tracking = { auto_scan = false, store_snapshot_content = false } })
+	local tracker = require("gemi.tracker")
+
+	local tmpdir = vim.fn.tempname()
+	vim.fn.mkdir(tmpdir, "p")
+	local test_file = tmpdir .. "/tracked.txt"
+	vim.fn.writefile({ "snapshot content" }, test_file)
+
+	local old_cwd = vim.fn.getcwd()
+	vim.cmd("cd " .. vim.fn.fnameescape(tmpdir))
+
+	local snapshot = tracker.create_snapshot("test")
+	local stored = nil
+	for path, state in pairs(snapshot.files) do
+		if path:find("tracked.txt", 1, true) then
+			stored = state
+			break
+		end
+	end
+
+	assert_truthy(stored, "snapshot should include tracked file")
+	assert_eq(stored.content, nil, "metadata-only snapshot should not store file content")
+	assert_truthy(stored.mtime ~= nil)
+	assert_truthy(stored.size > 0)
+
+	vim.cmd("cd " .. vim.fn.fnameescape(old_cwd))
+	vim.fn.delete(tmpdir, "rf")
+end)
+
 test("tracker picks latest snapshot by sequence", function()
 	reset_gemi_modules()
 
@@ -186,6 +219,27 @@ test("tracker reload only matches exact paths and preserves modified buffers", f
 	vim.fn.delete(tmpdir, "rf")
 end)
 
+test("setup honors conversation and logging configuration", function()
+	reset_gemi_modules()
+
+	local gemi = require("gemi")
+	gemi.setup({
+		tracking = { auto_scan = false },
+		keymaps = false,
+		conversation = { max_history_length = 3 },
+		logging = { level = "ERROR", max_entries = 10 },
+	})
+
+	local conversation = require("gemi.conversation")
+	assert_eq(conversation.get_max_history_length(), 3)
+
+	local logger = require("gemi.logger")
+	logger.info("filtered info")
+	logger.error("kept error")
+	assert_eq(#logger.get_logs(), 1)
+	assert_eq(logger.get_logs()[1].message, "kept error")
+end)
+
 test("logger trims stored entries and coalesces refresh scheduling", function()
 	reset_gemi_modules()
 
@@ -201,6 +255,64 @@ test("logger trims stored entries and coalesces refresh scheduling", function()
 	assert_eq(logger.get_logs()[1].message, "two")
 	assert_eq(logger.get_logs()[2].message, "three")
 	vim.wait(20)
+end)
+
+test("toggle reopens overlay after closing via overlay hide", function()
+	reset_gemi_modules()
+
+	local gemi = require("gemi")
+	gemi.setup({ tracking = { auto_scan = false }, keymaps = false })
+	local overlay = require("gemi.overlay")
+
+	gemi.show()
+	overlay.hide()
+	assert_truthy(not overlay.is_visible(), "overlay should be hidden after direct hide")
+
+	gemi.toggle()
+	assert_truthy(overlay.is_visible(), "toggle should reopen overlay after direct hide")
+	overlay.hide()
+end)
+
+test("failed execute_prompt does not add user message to conversation", function()
+	reset_gemi_modules()
+
+	package.loaded["gemi.executor"] = {
+		run_gemini = function(prompt, callback)
+			if prompt:find("fail task", 1, true) then
+				callback(false, "execution failed")
+			else
+				callback(true, "assistant response")
+			end
+			return { shutdown = function() end }
+		end,
+	}
+	package.loaded["gemi.tracker"] = {
+		setup = function() end,
+		create_snapshot = function() end,
+		scan_for_changes = function() end,
+	}
+
+	local gemi = require("gemi")
+	gemi.setup({ tracking = { auto_scan = false }, keymaps = false })
+
+	gemi.execute_prompt("first task")
+	gemi.execute_prompt("fail task")
+
+	local history = require("gemi.conversation").get_history()
+	assert_eq(#history, 2, "only successful exchange should be stored")
+	assert_eq(history[1].content, "first task")
+	assert_eq(history[2].content, "assistant response")
+end)
+
+test("executor auth detection avoids generic false positives", function()
+	reset_gemi_modules()
+
+	local executor = require("gemi.executor")
+
+	assert_truthy(executor._is_auth_error("Authentication required for this request"))
+	assert_truthy(executor._is_auth_error("Please log in to continue"))
+	assert_truthy(not executor._is_auth_error("authority file not found"))
+	assert_truthy(not executor._is_auth_error("author updated the document"))
 end)
 
 test("overlay can show, update, and hide without stale scheduled window errors", function()

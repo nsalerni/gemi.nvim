@@ -5,12 +5,16 @@ local M = {}
 M.defaults = {
 	-- UI settings
 	ui = {
-		width = 0.8, -- 80% of screen width
-		height = 1, -- Single line input
-		position = "bottom",
+		width = 0.8, -- Overlay width as a fraction of screen width
+		height = 0.8, -- Overlay height as a fraction of screen height
+		position = "center", -- Overlay position: "center", "bottom", or "top"
 		border = "rounded",
 		title = " Gemi ",
-		prompt = "Gemi: ",
+		prompt = "> ", -- Prompt prefix shown in the overlay input
+	},
+	-- Conversation context
+	conversation = {
+		max_history_length = 20,
 	},
 	-- Keymaps
 	keymaps = {
@@ -36,6 +40,7 @@ M.defaults = {
 		auto_scan = true,
 		max_files = 2000,
 		max_file_size = 1024 * 1024,
+		store_snapshot_content = false,
 		exclude_patterns = {
 			"%.git/",
 			"node_modules/",

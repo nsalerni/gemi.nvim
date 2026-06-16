@@ -15,6 +15,20 @@ M.LEVELS = {
 	ERROR = 4,
 }
 
+local function get_min_level()
+	local ok, config = pcall(require, "gemi.config")
+	if not ok then
+		return M.LEVELS.INFO
+	end
+
+	local level_name = config.get("logging.level")
+	if type(level_name) == "string" then
+		return M.LEVELS[level_name:upper()] or M.LEVELS.INFO
+	end
+
+	return M.LEVELS.INFO
+end
+
 -- Check if debug logging is enabled
 function M.is_debug_enabled()
 	local ok, config = pcall(require, "gemi.config")
@@ -28,6 +42,10 @@ end
 function M.log(level, message, data)
 	-- Skip debug messages unless debug is enabled
 	if level == M.LEVELS.DEBUG and not M.is_debug_enabled() then
+		return
+	end
+
+	if level < get_min_level() then
 		return
 	end
 
