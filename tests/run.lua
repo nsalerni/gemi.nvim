@@ -219,6 +219,27 @@ test("tracker reload only matches exact paths and preserves modified buffers", f
 	vim.fn.delete(tmpdir, "rf")
 end)
 
+test("setup honors conversation and logging configuration", function()
+	reset_gemi_modules()
+
+	local gemi = require("gemi")
+	gemi.setup({
+		tracking = { auto_scan = false },
+		keymaps = false,
+		conversation = { max_history_length = 3 },
+		logging = { level = "ERROR", max_entries = 10 },
+	})
+
+	local conversation = require("gemi.conversation")
+	assert_eq(conversation.get_max_history_length(), 3)
+
+	local logger = require("gemi.logger")
+	logger.info("filtered info")
+	logger.error("kept error")
+	assert_eq(#logger.get_logs(), 1)
+	assert_eq(logger.get_logs()[1].message, "kept error")
+end)
+
 test("logger trims stored entries and coalesces refresh scheduling", function()
 	reset_gemi_modules()
 

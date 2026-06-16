@@ -5,6 +5,11 @@ local config = require("gemi.config")
 local logger = require("gemi.logger")
 local highlight_ns = vim.api.nvim_create_namespace("gemi_highlight")
 
+local function get_prompt_prefix()
+	local ui_config = config.get("ui") or {}
+	return ui_config.prompt or "> "
+end
+
 local function is_valid_window(win)
 	return win and vim.api.nvim_win_is_valid(win)
 end
@@ -54,7 +59,7 @@ local function create_prompt_buffer()
 	vim.api.nvim_buf_set_option(buf, "modifiable", true)
 	vim.api.nvim_buf_set_option(buf, "filetype", "gemi-prompt")
 	-- Set up initial prompt text with cleaner indicator
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "> " })
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { get_prompt_prefix() })
 	return buf
 end
 
@@ -64,8 +69,20 @@ local function get_window_config()
 	local screen_width = vim.o.columns
 	local screen_height = vim.o.lines
 	local width = math.floor(screen_width * (ui_config.width or 0.9))
-	local height = math.floor(screen_height * 0.8)
-	local row = math.floor((screen_height - height) / 2)
+	local height_ratio = ui_config.height
+	if type(height_ratio) ~= "number" or height_ratio <= 0 or height_ratio > 1 then
+		height_ratio = 0.8
+	end
+	local height = math.floor(screen_height * height_ratio)
+	local position = ui_config.position or "center"
+	local row
+	if position == "bottom" then
+		row = math.max(0, screen_height - height - 1)
+	elseif position == "top" then
+		row = 1
+	else
+		row = math.floor((screen_height - height) / 2)
+	end
 	local col = math.floor((screen_width - width) / 2)
 	return {
 		relative = "editor",
@@ -296,7 +313,7 @@ function M.show()
 		local lines = vim.api.nvim_buf_get_lines(M._state.prompt_buf, 0, -1, false)
 		local full_text = table.concat(lines, "\n")
 		-- Remove the prompt prefix from the first line
-		local prompt_prefix = "> "
+		local prompt_prefix = get_prompt_prefix()
 		if full_text:sub(1, #prompt_prefix) == prompt_prefix then
 			full_text = full_text:sub(#prompt_prefix + 1)
 		end
@@ -316,12 +333,14 @@ function M.show()
 		local lines = vim.api.nvim_buf_get_lines(M._state.prompt_buf, 0, -1, false)
 		if #lines > 0 then
 			local first_line = lines[1]
-			if not first_line:match("^> ") then
+			local prompt_prefix = get_prompt_prefix()
+			local prefix_pattern = "^" .. vim.pesc(prompt_prefix)
+			if not first_line:match(prefix_pattern) then
 				-- Restore the prompt prefix if it's missing
 				if first_line == "" then
-					vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, 1, false, { "> " })
+					vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, 1, false, { prompt_prefix })
 				else
-					vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, 1, false, { "> " .. first_line })
+					vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, 1, false, { prompt_prefix .. first_line })
 				end
 				-- Move cursor to after the prefix
 				vim.schedule(function()
@@ -330,7 +349,7 @@ function M.show()
 					end
 
 					local cursor_pos = vim.api.nvim_win_get_cursor(M._state.prompt_win)
-					local new_col = math.max(2, cursor_pos[2])
+					local new_col = math.max(#prompt_prefix, cursor_pos[2])
 					vim.api.nvim_win_set_cursor(M._state.prompt_win, { cursor_pos[1], new_col })
 				end)
 			end
@@ -345,7 +364,7 @@ function M.show()
 			local line = cursor_pos[1]
 
 			-- Prevent deletion if cursor is at or before the prefix
-			if line == 1 and col <= 2 then
+			if line == 1 and col <= #get_prompt_prefix() then
 				return -- Block the deletion
 			end
 
@@ -447,14 +466,15 @@ function M.show()
 
 	-- Restore saved prompt text if any
 	if M._state.saved_prompt_text ~= "" then
-		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "> " .. M._state.saved_prompt_text })
+		local prompt_prefix = get_prompt_prefix()
+		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { prompt_prefix .. M._state.saved_prompt_text })
 		-- Move cursor to end of line
 		vim.schedule(function()
 			if not is_valid_window(M._state.prompt_win) then
 				return
 			end
 
-			local line_len = #("> " .. M._state.saved_prompt_text)
+			local line_len = #(prompt_prefix .. M._state.saved_prompt_text)
 			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, line_len })
 		end)
 	else
@@ -464,7 +484,7 @@ function M.show()
 				return
 			end
 
-			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, 2 }) -- 2 = length of "> "
+			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, #get_prompt_prefix() })
 		end)
 	end
 
@@ -491,7 +511,7 @@ function M.hide()
 		if #lines > 0 then
 			-- Remove the prompt prefix and save the actual text
 			local text = lines[1] or ""
-			local prompt_prefix = "> "
+			local prompt_prefix = get_prompt_prefix()
 			if text:sub(1, #prompt_prefix) == prompt_prefix then
 				text = text:sub(#prompt_prefix + 1)
 			end
@@ -552,7 +572,7 @@ function M._execute_prompt_internal(prompt)
 
 	-- Clear the prompt input and reset with prompt prefix
 	if M._state.prompt_buf and vim.api.nvim_buf_is_valid(M._state.prompt_buf) then
-		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "> " })
+		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { get_prompt_prefix() })
 	end
 
 	-- Update logs to show the new prompt
