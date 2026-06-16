@@ -1,6 +1,6 @@
 *gemi.txt*  Neovim plugin for Google Gemini CLI integration
 
-Author: Your Name
+Author: Nick Salerni
 License: MIT
 
 ==============================================================================
@@ -19,11 +19,11 @@ CONTENTS                                                        *gemi-contents*
 
 Gemi.nvim provides seamless integration with Google's gemini-cli, allowing
 you to interact with Gemini AI directly from Neovim. The plugin features a
-minimal, toggleable UI and comprehensive file change tracking.
+toggleable overlay with prompt input, logs, and file change tracking.
 
 Features:
 - Easy gemini-cli installation and dependency management
-- Minimal, non-intrusive UI
+- Toggleable overlay UI with conversation context
 - Real-time execution with progress feedback
 - File change tracking and navigation
 - Side-by-side diff viewer
@@ -35,7 +35,7 @@ Features:
 
 Using lazy.nvim: >
     {
-      'your-username/gemi.nvim',
+      'nsalerni/gemi.nvim',
       config = function()
         require('gemi').setup()
       end
@@ -44,7 +44,7 @@ Using lazy.nvim: >
 
 Using packer.nvim: >
     use {
-      'your-username/gemi.nvim',
+      'nsalerni/gemi.nvim',
       config = function()
         require('gemi').setup()
       end
@@ -61,11 +61,14 @@ Configure Gemi.nvim by calling setup() with your options: >
     require('gemi').setup({
       ui = {
         width = 0.8,
-        height = 1,
-        position = 'bottom',
+        height = 0.8,
+        position = 'center',
         border = 'rounded',
         title = ' Gemi ',
-        prompt = 'Gemi: ',
+        prompt = '> ',
+      },
+      conversation = {
+        max_history_length = 20,
       },
       keymaps = {
         toggle = '<leader>g',
@@ -88,6 +91,7 @@ Configure Gemi.nvim by calling setup() with your options: >
         auto_scan = true,
         max_files = 2000,
         max_file_size = 1024 * 1024,
+        store_snapshot_content = false,
         exclude_patterns = {
           '%.git/',
           'node_modules/',
@@ -95,16 +99,30 @@ Configure Gemi.nvim by calling setup() with your options: >
           '%.log$',
         },
       },
+      logging = {
+        debug = false,
+        level = 'INFO',
+        max_entries = 500,
+      },
+      install = {
+        check_node = true,
+        node_min_version = '16.0.0',
+        auto_install = false,
+      },
     })
 <
 
                                                                *gemi-config-ui*
-ui.width            Width of the prompt window (0.0 to 1.0)
-ui.height           Height of the prompt window (lines)
-ui.position         Position: 'bottom', 'top', or 'center'
+ui.width            Overlay width as a fraction of screen width (0.0 to 1.0)
+ui.height           Overlay height as a fraction of screen height (0.0 to 1.0)
+ui.position         Overlay position: 'center', 'bottom', or 'top'
 ui.border           Border style: 'single', 'double', 'rounded', etc.
 ui.title            Window title text
-ui.prompt           Prompt text shown in input
+ui.prompt           Prompt prefix shown in the overlay input
+
+                                                    *gemi-config-conversation*
+conversation.max_history_length
+                    Maximum conversation messages kept in context
 
                                                          *gemi-config-keymaps*
 keymaps.toggle      Keymap to toggle the UI (default: '<leader>g')
@@ -127,13 +145,31 @@ gemini.checkpointing Pass --checkpointing to gemini-cli
 tracking.auto_scan      Auto-track file changes (default: true)
 tracking.max_files      Maximum project files to scan (default: 2000)
 tracking.max_file_size  Maximum file bytes to keep for diffs (default: 1048576)
+tracking.store_snapshot_content
+                    Store full file contents in snapshots (default: false)
 tracking.exclude_patterns   File patterns to exclude from tracking
+
+                                                         *gemi-config-logging*
+logging.debug         Enable verbose debug logging
+logging.level         Minimum log level: DEBUG, INFO, WARN, ERROR
+logging.max_entries   Maximum log entries to retain
+
+                                                         *gemi-config-install*
+install.check_node        Check Node.js during installation
+install.node_min_version  Minimum supported Node.js version
+install.auto_install      Auto-install missing dependencies on setup
 
 ==============================================================================
 4. COMMANDS                                                     *gemi-commands*
 
+                                                                    *:Gemi*
+:Gemi                  Open the Gemi overlay
+
                                                                *:GemiToggle*
-:GemiToggle            Toggle the Gemi prompt interface
+:GemiToggle            Toggle the Gemi overlay
+
+                                                                 *:GemiStop*
+:GemiStop              Stop current Gemini execution
 
                                                                *:GemiInstall*
 :GemiInstall           Install gemini-cli and check dependencies
@@ -142,16 +178,31 @@ tracking.exclude_patterns   File patterns to exclude from tracking
 :GemiFiles             Show files changed by Gemi in quickfix list
 
                                                                *:GemiDiff*
-:GemiDiff              Show side-by-side diff view of changes
+:GemiDiff [file]       Show side-by-side diff view of changes
 
                                                                *:GemiLogs*
 :GemiLogs              Show execution logs
 
+                                                          *:GemiClearLogs*
+:GemiClearLogs         Clear stored execution logs
+
                                                                *:GemiReload*
 :GemiReload            Force reload changed files
 
+                                                                *:GemiDebug*
+:GemiDebug             Debug file change detection state
+
                                                                *:GemiModel*
-:GemiModel             Switch Gemini model
+:GemiModel [model]     Switch Gemini model
+
+                                                         *:GemiCurrentModel*
+:GemiCurrentModel      Show current Gemini model
+
+                                                    *:GemiClearConversation*
+:GemiClearConversation Clear conversation history
+
+                                                       *:GemiToggleContext*
+:GemiToggleContext     Toggle conversation context in prompts
 
 ==============================================================================
 5. FUNCTIONS                                                   *gemi-functions*
@@ -160,7 +211,7 @@ tracking.exclude_patterns   File patterns to exclude from tracking
 gemi.setup({opts})     Configure the plugin with given options
 
                                                              *gemi.toggle()*
-gemi.toggle()          Toggle the Gemi prompt interface
+gemi.toggle()          Toggle the Gemi overlay
 
                                                          *gemi.install_cli()*
 gemi.install_cli()     Install gemini-cli and dependencies
@@ -169,7 +220,7 @@ gemi.install_cli()     Install gemini-cli and dependencies
 gemi.show_changed_files()  Show changed files in quickfix list
 
                                                            *gemi.show_diff()*
-gemi.show_diff()       Show diff view of changes
+gemi.show_diff([file]) Show diff view of changes
 
                                                        *gemi.execute_prompt()*
 gemi.execute_prompt(prompt)  Execute a Gemini prompt
@@ -183,7 +234,7 @@ gemi.stop()            Stop current Gemini execution
 Default keybindings (can be customized in configuration):
 
 {mode}  {lhs}           {rhs}                   {description}
-n       <leader>g       |gemi.toggle()|        Toggle Gemi prompt
+n       <leader>g       |gemi.toggle()|        Toggle Gemi overlay
 n       <leader>gf      |gemi.show_changed_files()| Show changed files
 n       <leader>gd      |gemi.show_diff()|     Show diff view
 n       <leader>gs      |gemi.stop()|          Stop execution
@@ -192,11 +243,20 @@ n       <leader>gl      |:GemiLogs|            Show logs
 n       <leader>gr      |:GemiReload|          Reload changed files
 n       <leader>gm      |:GemiModel|           Switch model
 
-UI-specific keybindings (when prompt is open):
-i       <Esc>           Close prompt
-n       <Esc>           Close prompt
-n       q               Close prompt
-i       <C-c>           Close prompt
+Overlay keybindings (when the overlay is open):
+
+{mode}  {lhs}           {description}
+n/i     <CR>            Execute the current prompt
+i       <S-CR>          Insert a newline in the prompt
+n/i     <Tab>           Toggle focus between logs and prompt
+i       <C-Tab>         Toggle focus between logs and prompt
+n/i     <C-g>           Toggle the overlay
+n       r               Refresh the logs panel
+n       c               Toggle conversation context
+n       x               Clear conversation history
+n/i     <Esc>           Close the overlay
+n       q               Close the overlay
+i       <C-c>           Close the overlay
 
 ==============================================================================
 7. TROUBLESHOOTING                                       *gemi-troubleshooting*
@@ -225,7 +285,7 @@ Solution:
 - Verify plugin installation
 - Check for conflicting keybindings
 
-For more help, visit: https://github.com/your-username/gemi.nvim/issues
+For more help, visit: https://github.com/nsalerni/gemi.nvim/issues
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
