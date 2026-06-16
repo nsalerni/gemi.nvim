@@ -14,10 +14,14 @@ M.defaults = {
 	},
 	-- Keymaps
 	keymaps = {
-		toggle = "<leader>i",
-		files = "<leader>if",
-		diff = "<leader>id",
-		stop = "<leader>is",
+		toggle = "<leader>g",
+		files = "<leader>gf",
+		diff = "<leader>gd",
+		stop = "<leader>gs",
+		install = "<leader>gi",
+		logs = "<leader>gl",
+		reload = "<leader>gr",
+		model = "<leader>gm",
 	},
 	-- gemini-cli settings
 	gemini = {
@@ -30,6 +34,8 @@ M.defaults = {
 	-- File tracking
 	tracking = {
 		auto_scan = true,
+		max_files = 2000,
+		max_file_size = 1024 * 1024,
 		exclude_patterns = {
 			"%.git/",
 			"node_modules/",
@@ -47,6 +53,7 @@ M.defaults = {
 	logging = {
 		debug = false, -- Enable verbose debug logging
 		level = "INFO", -- Log level: DEBUG, INFO, WARN, ERROR
+		max_entries = 500,
 	},
 }
 
@@ -55,7 +62,7 @@ M.config = {}
 
 -- Setup function
 function M.setup(opts)
-	M.config = vim.tbl_deep_extend("force", M.defaults, opts or {})
+	M.config = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
 end
 
 -- Get configuration value

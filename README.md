@@ -11,7 +11,7 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
 
 - 🚀 **Easy Installation**: Automatically installs gemini-cli and dependencies
 - 🎯 **Minimal UI**: Toggleable prompt interface that stays out of your way
-- 🔄 **Non-blocking Execution**: Run gemini-cli without freezing the UI (requires asyncrun.vim)
+- 🔄 **Non-blocking Execution**: Run gemini-cli without freezing the UI
 - 🔃 **Auto-reload**: Automatically reloads modified files in Neovim after gemini CLI makes changes
 - 📁 **File Tracking**: Monitor and navigate files changed by Gemini
 - 📊 **Diff Viewer**: Side-by-side comparison of changes made by Gemini
@@ -27,9 +27,6 @@ A Neovim plugin for seamless integration with Google's gemini-cli, providing an 
   'nsalerni/gemi.nvim',
   -- Optional: Pin to specific version
   -- tag = 'v0.1',
-  dependencies = {
-    'skywind3000/asyncrun.vim', -- Optional: for non-blocking execution
-  },
   config = function()
     require('gemi').setup({
       -- Optional configuration
@@ -45,9 +42,6 @@ use {
   'nsalerni/gemi.nvim',
   -- Optional: Pin to specific version
   -- tag = 'v0.1',
-  requires = {
-    'skywind3000/asyncrun.vim', -- Optional: for non-blocking execution
-  },
   config = function()
     require('gemi').setup()
   end
@@ -57,7 +51,6 @@ use {
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
-Plug 'skywind3000/asyncrun.vim'  " Optional: for non-blocking execution
 Plug 'nsalerni/gemi.nvim'
 " Optional: Pin to specific version
 " Plug 'nsalerni/gemi.nvim', { 'tag': 'v0.1' }
@@ -119,6 +112,7 @@ Gemi.nvim follows semantic versioning. You can:
 | `<leader>gd` | `:GemiDiff` | Show diff view |
 | `<leader>gs` | Stop execution | Stop current Gemi operation |
 | `<leader>gi` | `:GemiInstall` | Install dependencies |
+| `<leader>gl` | `:GemiLogs` | Show execution logs |
 | `<leader>gr` | `:GemiReload` | Force reload changed files |
 | `<leader>gm` | `:GemiModel` | Switch Gemini model |
 
@@ -142,6 +136,10 @@ require('gemi').setup({
     files = '<leader>gf',
     diff = '<leader>gd',
     stop = '<leader>gs',
+    install = '<leader>gi',
+    logs = '<leader>gl',
+    reload = '<leader>gr',
+    model = '<leader>gm',
   },
 
   -- gemini-cli settings
@@ -156,6 +154,8 @@ require('gemi').setup({
   -- File tracking
   tracking = {
     auto_scan = true,        -- Automatically track file changes
+    max_files = 2000,        -- Cap project file scans
+    max_file_size = 1024 * 1024, -- Skip large file contents in snapshots
     exclude_patterns = {     -- Files/patterns to ignore
       '%.git/',
       'node_modules/',
@@ -168,6 +168,7 @@ require('gemi').setup({
   logging = {
     debug = false,           -- Enable verbose debug logging
     level = 'INFO',          -- Log level: DEBUG, INFO, WARN, ERROR
+    max_entries = 500,       -- Keep recent log entries bounded
   },
 
   -- Installation settings
@@ -309,6 +310,14 @@ The plugin tracks changes from when it starts. If you don't see changes:
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
+
+Run local checks with:
+
+```bash
+make check
+make test
+make build
+```
 
 ## License
 

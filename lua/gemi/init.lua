@@ -7,6 +7,7 @@ M._state = {
 	current_job = nil,
 	ui_visible = false,
 	initialized = false,
+	applied_keymaps = {},
 }
 
 -- Lazy load modules
@@ -30,56 +31,65 @@ local function get_tracker()
 	return require("gemi.tracker")
 end
 
--- Setup function
-function M.setup(opts)
-	if M._state.initialized then
+local function clear_applied_keymaps()
+	for mode, mappings in pairs(M._state.applied_keymaps) do
+		for lhs, _ in pairs(mappings) do
+			pcall(vim.keymap.del, mode, lhs)
+		end
+	end
+	M._state.applied_keymaps = {}
+end
+
+local function set_configured_keymap(mode, lhs, rhs, desc)
+	if type(lhs) ~= "string" or lhs == "" then
 		return
 	end
+
+	vim.keymap.set(mode, lhs, rhs, { desc = desc, silent = true })
+	M._state.applied_keymaps[mode] = M._state.applied_keymaps[mode] or {}
+	M._state.applied_keymaps[mode][lhs] = true
+end
+
+local function setup_keymaps()
+	local config = get_config()
+	local keymaps = config.get("keymaps")
+	if keymaps == false then
+		clear_applied_keymaps()
+		return
+	end
+
+	keymaps = keymaps or {}
+	clear_applied_keymaps()
+	set_configured_keymap("n", keymaps.toggle, M.toggle, "Toggle Gemi overlay")
+	set_configured_keymap("n", keymaps.files, M.show_changed_files, "Show Gemi changed files")
+	set_configured_keymap("n", keymaps.diff, M.show_diff, "Show Gemi diff")
+	set_configured_keymap("n", keymaps.stop, M.stop, "Stop Gemi execution")
+	set_configured_keymap("n", keymaps.install, M.install_cli, "Install Gemi CLI")
+	set_configured_keymap("n", keymaps.logs, function()
+		require("gemi.logger").show_logs()
+	end, "Show Gemi logs")
+	set_configured_keymap("n", keymaps.reload, M.force_reload_changed_files, "Force reload Gemi changed files")
+	set_configured_keymap("n", keymaps.model, M.switch_model, "Switch Gemini model")
+end
+
+-- Setup function
+function M.setup(opts)
 	local config = get_config()
 	config.setup(opts or {})
 	local overlay = get_overlay()
 	overlay.setup()
-	local tracker = get_tracker()
-	tracker.setup()
-
-	-- Set up user-configurable keymaps and disable defaults
-	local keymaps = config.get("keymaps")
-	vim.g.gemi_user_setup = true -- Flag to indicate user called setup()
-
-	if keymaps.toggle then
-		vim.keymap.set("n", keymaps.toggle, M.toggle, { desc = "Toggle Gemi overlay" })
+	if not M._state.initialized then
+		local tracker = get_tracker()
+		tracker.setup()
 	end
-	if keymaps.files then
-		vim.keymap.set("n", keymaps.files, M.show_changed_files, { desc = "Show Gemi changed files" })
-	end
-	if keymaps.diff then
-		vim.keymap.set("n", keymaps.diff, M.show_diff, { desc = "Show Gemi diff" })
-	end
-	if keymaps.stop then
-		vim.keymap.set("n", keymaps.stop, M.stop, { desc = "Stop Gemi execution" })
-	end
-
-	-- Create user commands
-	vim.api.nvim_create_user_command("Gemi", M.show, {})
-	vim.api.nvim_create_user_command("GemiToggle", M.toggle, {})
-	vim.api.nvim_create_user_command("GemiStop", M.stop, {})
-	vim.api.nvim_create_user_command("GemiShowDiff", M.show_diff, {})
-	vim.api.nvim_create_user_command("GemiShowChangedFiles", M.show_changed_files, {})
-	vim.api.nvim_create_user_command("GemiLogs", function()
-		require("gemi.logger").show_logs()
-	end, {})
-	vim.api.nvim_create_user_command("GemiClearConversation", M.clear_conversation, {})
-	vim.api.nvim_create_user_command("GemiToggleContext", M.toggle_conversation_context, {})
+	setup_keymaps()
 	M._state.initialized = true
 end
 
 -- Show the overlay
 function M.show()
-	-- Skip full setup for just showing overlay - only initialize config if needed
 	if not M._state.initialized then
-		local config = get_config()
-		config.setup({}) -- Use minimal config
-		M._state.initialized = true
+		M.setup()
 	end
 
 	local overlay = get_overlay()
@@ -89,11 +99,8 @@ end
 
 -- Toggle the overlay
 function M.toggle()
-	-- Skip full setup for just showing overlay - only initialize config if needed
 	if not M._state.initialized then
-		local config = get_config()
-		config.setup({}) -- Use minimal config
-		M._state.initialized = true
+		M.setup()
 	end
 
 	local overlay = get_overlay()
@@ -148,11 +155,11 @@ function M.execute_prompt(prompt)
 	local tracker = get_tracker()
 	local conversation = require("gemi.conversation")
 
-	-- Add user message to conversation history
-	conversation.add_user_message(prompt)
-
 	-- Build context prompt that includes conversation history
 	local context_prompt = conversation.build_context_prompt(prompt)
+
+	-- Add user message to conversation history after context is built.
+	conversation.add_user_message(prompt)
 
 	-- Create a snapshot before execution to capture the baseline
 	tracker.create_snapshot("pre_execution")
@@ -169,7 +176,7 @@ function M.execute_prompt(prompt)
 		else
 			-- Check if this is a rate limit error and we should try fallback
 			if M.is_rate_limit_error(output) and not M._state.using_fallback then
-				M.handle_rate_limit_error(prompt, output)
+				M.handle_rate_limit_error(context_prompt, output)
 			else
 				vim.notify("Gemi failed: " .. (output or "Unknown error"), vim.log.levels.ERROR)
 			end
@@ -207,6 +214,8 @@ function M.handle_rate_limit_error(prompt, error_output)
 		M._state.current_job = nil
 		M._state.using_fallback = false
 		if success then
+			local conversation = require("gemi.conversation")
+			conversation.add_assistant_response(output)
 			-- Scan for changes after execution
 			tracker.scan_for_changes()
 			logger.info("Fallback model succeeded", { fallback_model = fallback_model })
@@ -340,10 +349,10 @@ function M.is_rate_limit_error(error_output)
 		return false
 	end
 	local error_str = tostring(error_output):lower()
-	return error_str:find("429")
-		or error_str:find("rate limit")
-		or error_str:find("quota")
-		or error_str:find("too many requests")
+	return error_str:find("429", 1, true) ~= nil
+		or error_str:find("rate limit", 1, true) ~= nil
+		or error_str:find("quota", 1, true) ~= nil
+		or error_str:find("too many requests", 1, true) ~= nil
 end
 
 -- Conversation management functions

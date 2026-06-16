@@ -3,6 +3,11 @@
 local M = {}
 local config = require("gemi.config")
 local logger = require("gemi.logger")
+local highlight_ns = vim.api.nvim_create_namespace("gemi_highlight")
+
+local function is_valid_window(win)
+	return win and vim.api.nvim_win_is_valid(win)
+end
 
 -- Overlay state
 M._state = {
@@ -13,6 +18,9 @@ M._state = {
 	prompt_win = nil,
 	model_indicator_buf = nil,
 	model_indicator_win = nil,
+	model_indicator_text = nil,
+	model_indicator_row = nil,
+	model_indicator_col = nil,
 	logs_start_line = 3, -- Line where logs start
 	prompt_height = 1,
 	current_prompt = "",
@@ -80,7 +88,7 @@ local function start_spinner()
 	M._state.spinner_timer = vim.loop.new_timer()
 	M._state.spinner_timer:start(
 		0,
-		100,
+		200,
 		vim.schedule_wrap(function()
 			if M._state.is_executing then
 				M._state.spinner_index = (M._state.spinner_index % #M._state.spinner_chars) + 1
@@ -301,6 +309,10 @@ function M.show()
 
 	-- Function to protect the prompt prefix
 	local function protect_prompt_prefix()
+		if not M._state.prompt_buf or not vim.api.nvim_buf_is_valid(M._state.prompt_buf) then
+			return
+		end
+
 		local lines = vim.api.nvim_buf_get_lines(M._state.prompt_buf, 0, -1, false)
 		if #lines > 0 then
 			local first_line = lines[1]
@@ -313,6 +325,10 @@ function M.show()
 				end
 				-- Move cursor to after the prefix
 				vim.schedule(function()
+					if not is_valid_window(M._state.prompt_win) then
+						return
+					end
+
 					local cursor_pos = vim.api.nvim_win_get_cursor(M._state.prompt_win)
 					local new_col = math.max(2, cursor_pos[2])
 					vim.api.nvim_win_set_cursor(M._state.prompt_win, { cursor_pos[1], new_col })
@@ -434,12 +450,20 @@ function M.show()
 		vim.api.nvim_buf_set_lines(M._state.prompt_buf, 0, -1, false, { "> " .. M._state.saved_prompt_text })
 		-- Move cursor to end of line
 		vim.schedule(function()
+			if not is_valid_window(M._state.prompt_win) then
+				return
+			end
+
 			local line_len = #("> " .. M._state.saved_prompt_text)
 			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, line_len })
 		end)
 	else
 		-- Position cursor after prompt prefix
 		vim.schedule(function()
+			if not is_valid_window(M._state.prompt_win) then
+				return
+			end
+
 			vim.api.nvim_win_set_cursor(M._state.prompt_win, { 1, 2 }) -- 2 = length of "> "
 		end)
 	end
@@ -495,6 +519,9 @@ function M.hide()
 	M._state.prompt_win = nil
 	M._state.model_indicator_buf = nil
 	M._state.model_indicator_win = nil
+	M._state.model_indicator_text = nil
+	M._state.model_indicator_row = nil
+	M._state.model_indicator_col = nil
 	M._state.is_visible = false
 end
 
@@ -592,9 +619,7 @@ function M._apply_syntax_highlighting(lines)
 	end
 
 	-- Clear existing highlights
-	vim.api.nvim_buf_clear_namespace(M._state.main_buf, -1, 0, -1)
-
-	local ns_id = vim.api.nvim_create_namespace("gemi_highlight")
+	vim.api.nvim_buf_clear_namespace(M._state.main_buf, highlight_ns, 0, -1)
 
 	for i, line in ipairs(lines) do
 		local line_num = i - 1 -- 0-indexed
@@ -602,36 +627,43 @@ function M._apply_syntax_highlighting(lines)
 		-- Highlight header and status
 		if line:match("^=== 🤖 Gemi Chat ===") then
 			if line:match("⚡ Executing") then
-				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiExecuting", line_num, 0, -1)
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, highlight_ns, "GemiExecuting", line_num, 0, -1)
 			else
-				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiTitle", line_num, 0, -1)
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, highlight_ns, "GemiTitle", line_num, 0, -1)
 			end
 		-- Highlight conversation context
 		elseif line:match("^📝 Conversation context:") then
-			vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiContext", line_num, 0, -1)
+			vim.api.nvim_buf_add_highlight(M._state.main_buf, highlight_ns, "GemiContext", line_num, 0, -1)
 		-- Highlight user prompts
 		elseif line:match("^💬 %[") then
 			local timestamp_start, timestamp_end = line:find("%[%d%d:%d%d:%d%d%]")
 			if timestamp_start then
-				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiUserPromptIcon", line_num, 0, 2)
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, highlight_ns, "GemiUserPromptIcon", line_num, 0, 2)
 				vim.api.nvim_buf_add_highlight(
 					M._state.main_buf,
-					ns_id,
+					highlight_ns,
 					"GemiTimestamp",
 					line_num,
 					timestamp_start - 1,
 					timestamp_end
 				)
-				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiUserPrompt", line_num, timestamp_end, -1)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf,
+					highlight_ns,
+					"GemiUserPrompt",
+					line_num,
+					timestamp_end,
+					-1
+				)
 			end
 		-- Highlight assistant responses
 		elseif line:match("^🤖 %[") then
 			local timestamp_start, timestamp_end = line:find("%[%d%d:%d%d:%d%d%]")
 			if timestamp_start then
-				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiAssistantIcon", line_num, 0, 2)
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, highlight_ns, "GemiAssistantIcon", line_num, 0, 2)
 				vim.api.nvim_buf_add_highlight(
 					M._state.main_buf,
-					ns_id,
+					highlight_ns,
 					"GemiTimestamp",
 					line_num,
 					timestamp_start - 1,
@@ -639,7 +671,7 @@ function M._apply_syntax_highlighting(lines)
 				)
 				vim.api.nvim_buf_add_highlight(
 					M._state.main_buf,
-					ns_id,
+					highlight_ns,
 					"GemiAssistantResponse",
 					line_num,
 					timestamp_end,
@@ -650,25 +682,32 @@ function M._apply_syntax_highlighting(lines)
 		elseif line:match("^❌ %[") then
 			local timestamp_start, timestamp_end = line:find("%[%d%d:%d%d:%d%d%]")
 			if timestamp_start then
-				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiError", line_num, 0, 2)
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, highlight_ns, "GemiError", line_num, 0, 2)
 				vim.api.nvim_buf_add_highlight(
 					M._state.main_buf,
-					ns_id,
+					highlight_ns,
 					"GemiTimestamp",
 					line_num,
 					timestamp_start - 1,
 					timestamp_end
 				)
-				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiError", line_num, timestamp_end, -1)
+				vim.api.nvim_buf_add_highlight(
+					M._state.main_buf,
+					highlight_ns,
+					"GemiError",
+					line_num,
+					timestamp_end,
+					-1
+				)
 			end
 		-- Highlight info messages
 		elseif line:match("^ℹ️ %[") then
 			local timestamp_start, timestamp_end = line:find("%[%d%d:%d%d:%d%d%]")
 			if timestamp_start then
-				vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiSuccess", line_num, 0, 2)
+				vim.api.nvim_buf_add_highlight(M._state.main_buf, highlight_ns, "GemiSuccess", line_num, 0, 2)
 				vim.api.nvim_buf_add_highlight(
 					M._state.main_buf,
-					ns_id,
+					highlight_ns,
 					"GemiTimestamp",
 					line_num,
 					timestamp_start - 1,
@@ -677,7 +716,7 @@ function M._apply_syntax_highlighting(lines)
 			end
 		-- Highlight separators
 		elseif line:match("^─+$") then
-			vim.api.nvim_buf_add_highlight(M._state.main_buf, ns_id, "GemiSeparator", line_num, 0, -1)
+			vim.api.nvim_buf_add_highlight(M._state.main_buf, highlight_ns, "GemiSeparator", line_num, 0, -1)
 		end
 	end
 end
@@ -716,46 +755,53 @@ function M.add_model_indicator()
 
 	-- Create model indicator text
 	local model_text = string.format("[%s]", model_display)
-	local model_col = width - #model_text - 1
+	local model_col = math.max(0, width - #model_text - 1)
 	local model_row = height - 1
 
-	-- Create floating window for model indicator
-	if M._state.model_indicator_buf and vim.api.nvim_buf_is_valid(M._state.model_indicator_buf) then
-		vim.api.nvim_buf_delete(M._state.model_indicator_buf, { force = true })
+	if
+		M._state.model_indicator_win
+		and vim.api.nvim_win_is_valid(M._state.model_indicator_win)
+		and M._state.model_indicator_text == model_text
+		and M._state.model_indicator_row == model_row
+		and M._state.model_indicator_col == model_col
+	then
+		return
 	end
 
-	M._state.model_indicator_buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "buftype", "nofile")
-	vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "bufhidden", "wipe")
-	vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "buflisted", false)
-	vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "swapfile", false)
-	vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "modifiable", true)
+	if not M._state.model_indicator_buf or not vim.api.nvim_buf_is_valid(M._state.model_indicator_buf) then
+		M._state.model_indicator_buf = vim.api.nvim_create_buf(false, true)
+		vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "buftype", "nofile")
+		vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "bufhidden", "wipe")
+		vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "buflisted", false)
+		vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "swapfile", false)
+	end
 
-	-- Set the model text
+	vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "modifiable", true)
 	vim.api.nvim_buf_set_lines(M._state.model_indicator_buf, 0, -1, false, { model_text })
 	vim.api.nvim_buf_set_option(M._state.model_indicator_buf, "modifiable", false)
 
-	-- Calculate absolute position
-	local main_win_row = win_config.row or 0
-	local main_win_col = win_config.col or 0
-
-	-- Create floating window for model indicator
-	if M._state.model_indicator_win and vim.api.nvim_win_is_valid(M._state.model_indicator_win) then
-		vim.api.nvim_win_close(M._state.model_indicator_win, true)
-	end
-
-	M._state.model_indicator_win = vim.api.nvim_open_win(M._state.model_indicator_buf, false, {
-		relative = "editor",
+	local indicator_config = {
+		relative = "win",
+		win = M._state.main_win,
 		width = #model_text,
 		height = 1,
-		row = main_win_row + model_row,
-		col = main_win_col + model_col,
+		row = model_row,
+		col = model_col,
 		style = "minimal",
 		focusable = false,
 		zindex = 1000,
-	})
-	-- Set highlight for model indicator
-	vim.api.nvim_win_set_option(M._state.model_indicator_win, "winhighlight", "Normal:GemiModelIndicator")
+	}
+
+	if M._state.model_indicator_win and vim.api.nvim_win_is_valid(M._state.model_indicator_win) then
+		vim.api.nvim_win_set_config(M._state.model_indicator_win, indicator_config)
+	else
+		M._state.model_indicator_win = vim.api.nvim_open_win(M._state.model_indicator_buf, false, indicator_config)
+		vim.api.nvim_win_set_option(M._state.model_indicator_win, "winhighlight", "Normal:GemiModelIndicator")
+	end
+
+	M._state.model_indicator_text = model_text
+	M._state.model_indicator_row = model_row
+	M._state.model_indicator_col = model_col
 end
 
 -- Pre-initialize
