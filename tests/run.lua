@@ -203,6 +203,64 @@ test("logger trims stored entries and coalesces refresh scheduling", function()
 	vim.wait(20)
 end)
 
+test("toggle reopens overlay after closing via overlay hide", function()
+	reset_gemi_modules()
+
+	local gemi = require("gemi")
+	gemi.setup({ tracking = { auto_scan = false }, keymaps = false })
+	local overlay = require("gemi.overlay")
+
+	gemi.show()
+	overlay.hide()
+	assert_truthy(not overlay.is_visible(), "overlay should be hidden after direct hide")
+
+	gemi.toggle()
+	assert_truthy(overlay.is_visible(), "toggle should reopen overlay after direct hide")
+	overlay.hide()
+end)
+
+test("failed execute_prompt does not add user message to conversation", function()
+	reset_gemi_modules()
+
+	package.loaded["gemi.executor"] = {
+		run_gemini = function(prompt, callback)
+			if prompt:find("fail task", 1, true) then
+				callback(false, "execution failed")
+			else
+				callback(true, "assistant response")
+			end
+			return { shutdown = function() end }
+		end,
+	}
+	package.loaded["gemi.tracker"] = {
+		setup = function() end,
+		create_snapshot = function() end,
+		scan_for_changes = function() end,
+	}
+
+	local gemi = require("gemi")
+	gemi.setup({ tracking = { auto_scan = false }, keymaps = false })
+
+	gemi.execute_prompt("first task")
+	gemi.execute_prompt("fail task")
+
+	local history = require("gemi.conversation").get_history()
+	assert_eq(#history, 2, "only successful exchange should be stored")
+	assert_eq(history[1].content, "first task")
+	assert_eq(history[2].content, "assistant response")
+end)
+
+test("executor auth detection avoids generic false positives", function()
+	reset_gemi_modules()
+
+	local executor = require("gemi.executor")
+
+	assert_truthy(executor._is_auth_error("Authentication required for this request"))
+	assert_truthy(executor._is_auth_error("Please log in to continue"))
+	assert_truthy(not executor._is_auth_error("authority file not found"))
+	assert_truthy(not executor._is_auth_error("author updated the document"))
+end)
+
 test("overlay can show, update, and hide without stale scheduled window errors", function()
 	reset_gemi_modules()
 

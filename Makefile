@@ -140,9 +140,9 @@ dev-check: check
 fix:
 	@echo "Fixing luacheck warnings..."
 	@echo "Removing trailing whitespace..."
-	@find lua/ plugin/ tests/ -name "*.lua" -exec sed -i '' 's/[[:space:]]*$$//' {} \;
-	@echo "Removing empty lines with whitespace..."
-	@find lua/ plugin/ tests/ -name "*.lua" -exec sed -i '' '/^[[:space:]]*$$/d' {} \;
+	@find lua/ plugin/ tests/ -name "*.lua" -exec sed -i.bak 's/[[:space:]]*$$//' {} \;
+	@find lua/ plugin/ tests/ -name "*.lua" -exec sed -i.bak '/^[[:space:]]*$$/d' {} \;
+	@find lua/ plugin/ tests/ -name "*.lua.bak" -delete
 	@echo "Running stylua to fix formatting..."
 	@if command -v stylua >/dev/null 2>&1; then \
 		stylua lua/ plugin/ tests/ --config-path stylua.toml; \

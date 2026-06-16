@@ -13,18 +13,34 @@ local function clean_gemini_output(output)
 	return output
 end
 
-local function is_auth_error(output)
+local auth_error_patterns = {
+	"authentication required",
+	"authentication failed",
+	"not authenticated",
+	"unauthenticated",
+	"invalid credentials",
+	"invalid credential",
+	"permission denied",
+	"please log in",
+	"please login",
+	"login required",
+	"run 'gemini'",
+	'run "gemini"',
+}
+
+function M._is_auth_error(output)
 	if not output then
 		return false
 	end
 
 	local output_lower = output:lower()
-	return output_lower:find("authentication", 1, true) ~= nil
-		or output_lower:find("auth", 1, true) ~= nil
-		or output_lower:find("login", 1, true) ~= nil
-		or output_lower:find("credential", 1, true) ~= nil
-		or output_lower:find("unauthenticated", 1, true) ~= nil
-		or output_lower:find("permission denied", 1, true) ~= nil
+	for _, pattern in ipairs(auth_error_patterns) do
+		if output_lower:find(pattern, 1, true) then
+			return true
+		end
+	end
+
+	return false
 end
 
 local function overlay_call(method)
@@ -144,7 +160,7 @@ function M.run_gemini(prompt, callback)
 				})
 				logger.log_output(error_message, true)
 
-				if is_auth_error(error_message) then
+				if M._is_auth_error(error_message) then
 					error_message =
 						"Authentication required. Run 'gemini' in your terminal to authenticate, then try again."
 				end

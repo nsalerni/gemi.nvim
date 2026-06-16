@@ -94,7 +94,7 @@ function M.show()
 
 	local overlay = get_overlay()
 	overlay.show()
-	M._state.ui_visible = true
+	M._state.ui_visible = overlay.is_visible()
 end
 
 -- Toggle the overlay
@@ -104,13 +104,12 @@ function M.toggle()
 	end
 
 	local overlay = get_overlay()
-	if M._state.ui_visible then
+	if overlay.is_visible() then
 		overlay.hide()
-		M._state.ui_visible = false
 	else
 		overlay.show()
-		M._state.ui_visible = true
 	end
+	M._state.ui_visible = overlay.is_visible()
 end
 
 -- Install gemini-cli and dependencies
@@ -158,9 +157,6 @@ function M.execute_prompt(prompt)
 	-- Build context prompt that includes conversation history
 	local context_prompt = conversation.build_context_prompt(prompt)
 
-	-- Add user message to conversation history after context is built.
-	conversation.add_user_message(prompt)
-
 	-- Create a snapshot before execution to capture the baseline
 	tracker.create_snapshot("pre_execution")
 	M._state.is_running = true
@@ -168,7 +164,7 @@ function M.execute_prompt(prompt)
 		M._state.is_running = false
 		M._state.current_job = nil
 		if success then
-			-- Add assistant response to conversation history
+			conversation.add_user_message(prompt)
 			conversation.add_assistant_response(output)
 			-- Scan for changes after execution
 			tracker.scan_for_changes()
@@ -176,7 +172,7 @@ function M.execute_prompt(prompt)
 		else
 			-- Check if this is a rate limit error and we should try fallback
 			if M.is_rate_limit_error(output) and not M._state.using_fallback then
-				M.handle_rate_limit_error(context_prompt, output)
+				M.handle_rate_limit_error(prompt, context_prompt, output)
 			else
 				vim.notify("Gemi failed: " .. (output or "Unknown error"), vim.log.levels.ERROR)
 			end
@@ -185,7 +181,7 @@ function M.execute_prompt(prompt)
 end
 
 -- Handle rate limit errors with automatic model fallback
-function M.handle_rate_limit_error(prompt, error_output)
+function M.handle_rate_limit_error(user_prompt, context_prompt, error_output)
 	local current_model = M.get_current_model()
 	local fallback_model = M.get_fallback_model(current_model)
 
@@ -209,12 +205,13 @@ function M.handle_rate_limit_error(prompt, error_output)
 	local executor = get_executor()
 	local tracker = get_tracker()
 	M._state.is_running = true
-	M._state.current_job = executor.run_gemini(prompt, function(success, output)
+	M._state.current_job = executor.run_gemini(context_prompt, function(success, output)
 		M._state.is_running = false
 		M._state.current_job = nil
 		M._state.using_fallback = false
 		if success then
 			local conversation = require("gemi.conversation")
+			conversation.add_user_message(user_prompt)
 			conversation.add_assistant_response(output)
 			-- Scan for changes after execution
 			tracker.scan_for_changes()
@@ -258,6 +255,7 @@ function M.stop()
 		M._state.current_job:shutdown()
 		M._state.current_job = nil
 		M._state.is_running = false
+		M._state.using_fallback = false
 		vim.notify("Gemi execution stopped", vim.log.levels.INFO)
 	end
 end
