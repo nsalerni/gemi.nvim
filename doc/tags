@@ -1,7 +1,9 @@
-:GemiAuth	gemi.txt	/*:GemiAuth*
 :GemiDiff	gemi.txt	/*:GemiDiff*
 :GemiFiles	gemi.txt	/*:GemiFiles*
 :GemiInstall	gemi.txt	/*:GemiInstall*
+:GemiLogs	gemi.txt	/*:GemiLogs*
+:GemiModel	gemi.txt	/*:GemiModel*
+:GemiReload	gemi.txt	/*:GemiReload*
 :GemiToggle	gemi.txt	/*:GemiToggle*
 gemi-commands	gemi.txt	/*gemi-commands*
 gemi-config-gemini	gemi.txt	/*gemi-config-gemini*
@@ -15,7 +17,6 @@ gemi-installation	gemi.txt	/*gemi-installation*
 gemi-introduction	gemi.txt	/*gemi-introduction*
 gemi-keybindings	gemi.txt	/*gemi-keybindings*
 gemi-troubleshooting	gemi.txt	/*gemi-troubleshooting*
-gemi.authenticate()	gemi.txt	/*gemi.authenticate()*
 gemi.execute_prompt()	gemi.txt	/*gemi.execute_prompt()*
 gemi.install_cli()	gemi.txt	/*gemi.install_cli()*
 gemi.setup()	gemi.txt	/*gemi.setup()*

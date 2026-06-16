@@ -31,9 +31,17 @@ jobs:
         unzip stylua.zip
         chmod +x stylua
         sudo mv stylua /usr/local/bin/
+
+    - name: Install Neovim
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y neovim
     
     - name: Run linting and formatting check
       run: make check
+
+    - name: Run tests
+      run: make test
     
     - name: Run build
       run: make build
@@ -70,6 +78,11 @@ jobs:
     
     - name: Setup Luarocks
       uses: leafo/gh-actions-luarocks@v4
+
+    - name: Install Neovim
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y neovim
     
     - name: Install dependencies with Bun
       run: bun install
@@ -79,6 +92,9 @@ jobs:
     
     - name: Run linting and formatting check with Bun
       run: bun run check
+
+    - name: Run tests with Bun
+      run: bun run test
     
     - name: Run build with Bun
       run: bun run build
@@ -108,6 +124,5 @@ jobs:
     - name: Check Lua syntax with LuaJIT
       run: |
         echo "Checking Lua syntax with LuaJIT..."
-        find lua -name "*.lua" -exec luajit -bl {} \; > /dev/null 2>&1 || (echo "Syntax check failed" && exit 1)
-        find plugin -name "*.lua" -exec luajit -bl {} \; > /dev/null 2>&1 || (echo "Syntax check failed" && exit 1)
+        find lua plugin tests -name "*.lua" -exec luajit -bl {} \; > /dev/null 2>&1 || (echo "Syntax check failed" && exit 1)
         echo "LuaJIT syntax check passed!"

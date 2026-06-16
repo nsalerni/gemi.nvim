@@ -72,14 +72,22 @@ Configure Gemi.nvim by calling setup() with your options: >
         files = '<leader>gf',
         diff = '<leader>gd',
         stop = '<leader>gs',
+        install = '<leader>gi',
+        logs = '<leader>gl',
+        reload = '<leader>gr',
+        model = '<leader>gm',
       },
       gemini = {
-        model = 'gemini-pro',
-        max_tokens = 4096,
-        temperature = 0.7,
+        model = 'gemini-2.5-flash',
+        debug = false,
+        all_files = false,
+        yolo = true,
+        checkpointing = true,
       },
       tracking = {
         auto_scan = true,
+        max_files = 2000,
+        max_file_size = 1024 * 1024,
         exclude_patterns = {
           '%.git/',
           'node_modules/',
@@ -103,14 +111,22 @@ keymaps.toggle      Keymap to toggle the UI (default: '<leader>g')
 keymaps.files       Keymap to show changed files (default: '<leader>gf')
 keymaps.diff        Keymap to show diff view (default: '<leader>gd')
 keymaps.stop        Keymap to stop execution (default: '<leader>gs')
+keymaps.install     Keymap to install/check CLI (default: '<leader>gi')
+keymaps.logs        Keymap to show logs (default: '<leader>gl')
+keymaps.reload      Keymap to reload changed files (default: '<leader>gr')
+keymaps.model       Keymap to switch model (default: '<leader>gm')
 
                                                            *gemi-config-gemini*
-gemini.model        Gemini model to use (default: 'gemini-pro')
-gemini.max_tokens   Maximum tokens for responses (default: 4096)
-gemini.temperature  Response creativity (0.0 to 1.0, default: 0.7)
+gemini.model        Gemini model to use (default: 'gemini-2.5-flash')
+gemini.debug        Pass --debug to gemini-cli
+gemini.all_files    Pass --all_files to gemini-cli
+gemini.yolo         Pass --yolo to gemini-cli
+gemini.checkpointing Pass --checkpointing to gemini-cli
 
                                                          *gemi-config-tracking*
 tracking.auto_scan      Auto-track file changes (default: true)
+tracking.max_files      Maximum project files to scan (default: 2000)
+tracking.max_file_size  Maximum file bytes to keep for diffs (default: 1048576)
 tracking.exclude_patterns   File patterns to exclude from tracking
 
 ==============================================================================
@@ -122,14 +138,20 @@ tracking.exclude_patterns   File patterns to exclude from tracking
                                                                *:GemiInstall*
 :GemiInstall           Install gemini-cli and check dependencies
 
-                                                               *:GemiAuth*
-:GemiAuth              Authenticate with Google
-
                                                                *:GemiFiles*
 :GemiFiles             Show files changed by Gemi in quickfix list
 
                                                                *:GemiDiff*
 :GemiDiff              Show side-by-side diff view of changes
+
+                                                               *:GemiLogs*
+:GemiLogs              Show execution logs
+
+                                                               *:GemiReload*
+:GemiReload            Force reload changed files
+
+                                                               *:GemiModel*
+:GemiModel             Switch Gemini model
 
 ==============================================================================
 5. FUNCTIONS                                                   *gemi-functions*
@@ -142,9 +164,6 @@ gemi.toggle()          Toggle the Gemi prompt interface
 
                                                          *gemi.install_cli()*
 gemi.install_cli()     Install gemini-cli and dependencies
-
-                                                         *gemi.authenticate()*
-gemi.authenticate()    Start Google authentication flow
 
                                                    *gemi.show_changed_files()*
 gemi.show_changed_files()  Show changed files in quickfix list
@@ -168,8 +187,10 @@ n       <leader>g       |gemi.toggle()|        Toggle Gemi prompt
 n       <leader>gf      |gemi.show_changed_files()| Show changed files
 n       <leader>gd      |gemi.show_diff()|     Show diff view
 n       <leader>gs      |gemi.stop()|          Stop execution
-n       <leader>ga      |gemi.authenticate()|  Authenticate
 n       <leader>gi      |gemi.install_cli()|   Install CLI
+n       <leader>gl      |:GemiLogs|            Show logs
+n       <leader>gr      |:GemiReload|          Reload changed files
+n       <leader>gm      |:GemiModel|           Switch model
 
 UI-specific keybindings (when prompt is open):
 i       <Esc>           Close prompt
@@ -188,7 +209,7 @@ Solution: Install Node.js from https://nodejs.org/
 
 Problem: Authentication fails
 Solution:
-- Run |:GemiAuth| to re-authenticate
+- Run `gemini` in your terminal to re-authenticate
 - Check internet connection
 - Ensure you have a Google account with Gemini access
 

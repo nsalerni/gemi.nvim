@@ -71,8 +71,7 @@ install-tools:
 build:
 	@echo "Building gemi.nvim..."
 	@echo "Checking Lua syntax..."
-	@find lua -name "*.lua" -exec lua -l {} \; 2>/dev/null || (echo "Syntax check failed" && exit 1)
-	@find plugin -name "*.lua" -exec lua -l {} \; 2>/dev/null || (echo "Syntax check failed" && exit 1)
+	@find lua plugin tests -name "*.lua" -exec luac -p {} \; || (echo "Syntax check failed" && exit 1)
 	@echo "Generating help tags..."
 	@if command -v nvim >/dev/null 2>&1; then \
 		nvim --headless -c "helptags doc" -c "quit"; \
@@ -85,7 +84,7 @@ build:
 lint:
 	@echo "Running luacheck..."
 	@if command -v luacheck >/dev/null 2>&1; then \
-		luacheck lua/ plugin/ --config .luacheckrc || (echo "Luacheck found issues" && exit 1); \
+		luacheck lua/ plugin/ tests/ --config .luacheckrc || (echo "Luacheck found issues" && exit 1); \
 	else \
 		echo "luacheck not found. Install with: make install-tools"; \
 		exit 1; \
@@ -95,7 +94,7 @@ lint:
 format:
 	@echo "Formatting Lua files with stylua..."
 	@if command -v stylua >/dev/null 2>&1; then \
-		stylua lua/ plugin/ --config-path stylua.toml; \
+		stylua lua/ plugin/ tests/ --config-path stylua.toml; \
 		echo "Formatting complete!"; \
 	else \
 		echo "stylua not found. Install with: make install-tools"; \
@@ -106,7 +105,7 @@ format:
 format-check:
 	@echo "Checking Lua file formatting..."
 	@if command -v stylua >/dev/null 2>&1; then \
-		stylua --check lua/ plugin/ --config-path stylua.toml; \
+		stylua --check lua/ plugin/ tests/ --config-path stylua.toml; \
 	else \
 		echo "stylua not found. Install with: make install-tools"; \
 		exit 1; \
@@ -116,15 +115,10 @@ format-check:
 check: lint format-check
 	@echo "All checks passed!"
 
-# Test target (placeholder for future tests)
+# Run headless Neovim tests
 test:
-	@echo "Running tests..."
-	@if [ -d "tests/" ]; then \
-		echo "Running test suite..."; \
-		# Add test runner here when tests are implemented; \
-	else \
-		echo "No tests found. Test directory: tests/"; \
-	fi
+	@echo "Running headless Neovim tests..."
+	@nvim --headless -u NONE -n --cmd "set runtimepath^=$(CURDIR)" -l tests/run.lua
 
 # Clean generated files
 clean:
@@ -146,12 +140,12 @@ dev-check: check
 fix:
 	@echo "Fixing luacheck warnings..."
 	@echo "Removing trailing whitespace..."
-	@find lua/ plugin/ -name "*.lua" -exec sed -i '' 's/[[:space:]]*$$//' {} \;
+	@find lua/ plugin/ tests/ -name "*.lua" -exec sed -i '' 's/[[:space:]]*$$//' {} \;
 	@echo "Removing empty lines with whitespace..."
-	@find lua/ plugin/ -name "*.lua" -exec sed -i '' '/^[[:space:]]*$$/d' {} \;
+	@find lua/ plugin/ tests/ -name "*.lua" -exec sed -i '' '/^[[:space:]]*$$/d' {} \;
 	@echo "Running stylua to fix formatting..."
 	@if command -v stylua >/dev/null 2>&1; then \
-		stylua lua/ plugin/ --config-path stylua.toml; \
+		stylua lua/ plugin/ tests/ --config-path stylua.toml; \
 	else \
 		echo "stylua not found. Install with: make install-tools"; \
 		exit 1; \
@@ -177,7 +171,7 @@ release:
 		--exclude='dist' \
 		--exclude='node_modules' \
 		--exclude='*.log' \
-		--exclude='test-*.lua' \
+		--exclude='tests' \
 		--exclude='.DS_Store' \
 		--exclude='Makefile' \
 		--exclude='.github' \
